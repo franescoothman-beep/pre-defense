@@ -1,0 +1,24 @@
+# 依赖与产物
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# 数据与日志（含上传原件，绝不入库）
+data/
+logs/
+*.db
+*.db-journal
+*.db-wal
+
+# 密钥
+.env
+.env.local
+.env*.local
+
+# 工具与临时
+.acl-recovery/
+.npm-cache/
+*.log
+.DS_Store

@@ -1,0 +1,41 @@
+@import 'tailwindcss';
+
+:root {
+  /* 方向 E：暖纸 · 朱批（配色单一真源，禁止在组件里写十六进制） */
+  --bg: #efeade;
+  --paper: #fbf8f1;
+  --paper-2: #f5efe4;
+  --paper-3: #fefcf7;
+  --ink: #17150f;
+  --ink-2: #413b2e;
+  --muted: #8a806d;
+  --line: #dcd3c1;
+  --line-2: #c6bba4;
+
+  --red: #b03a2e;
+  --red-soft: rgba(176, 58, 46, 0.09);
+  --red-line: rgba(176, 58, 46, 0.38);
+  --green: #3d5f50;
+  --green-soft: rgba(61, 95, 80, 0.1);
+
+  /* 四个维度＝四个传统色（颜色只用于编码，不当装饰） */
+  --dim-logic: #8c5b3f;    /* 赭石 */
+  --dim-evidence: #7c6a8a; /* 藕荷 */
+  --dim-depth: #3f6e63;    /* 竹青 */
+  --dim-expression: #4a6076; /* 靛青 */
+
+  --font-serif: 'Songti SC', 'SimSun', 'Noto Serif SC', Georgia, serif;
+  --font-sans: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Mono', Consolas, ui-monospace, monospace;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
