@@ -122,11 +122,12 @@ test('页面：不许出现 innerHTML / dangerouslySetInnerHTML（安全基线 S
   assert.ok(!/dangerouslySetInnerHTML/.test(src), 'S3：模型输出一律纯文本渲染');
 });
 
-test('页面：本拍明确不做输入框与 localStorage 暂存（按用户指令）', () => {
-  // 用户要求「只做流+光标（不含输入框、不含扫读思考态、不含 localStorage）」。
-  // 这条测试是范围守卫：有人顺手加了就红，提醒他先问。
-  // 【必须先剥掉注释】页面顶部的说明性注释里会提到"不做输入框""不做 localStorage"，
-  // 直接全文匹配会把"我没做"的声明误判成"我做了"。
+test('页面：输入框与暂存【已按后续指令加入】—— 这条旧的范围守卫已随需求反转', () => {
+  // 【历史】上一拍用户明确说「只做流+光标（不含输入框、不含 localStorage）」，
+  // 当时这条测试断言"不许有 textarea / localStorage"，用来防人顺手加东西。
+  // 【现在】用户已明确要求做输入框与暂存（阶段 3 第 5 条），
+  // 所以这条守卫必须**反转**：现在要求它们**存在**，而不是不许存在。
+  // 留下的价值：它会提醒后来者——范围守卫是跟着指令走的，不是永久的禁令。
   const src = fs.readFileSync(pagePath, 'utf8');
   const noBlockComments = src.replace(/\/\*[\s\S]*?\*\//g, '');
   const codeOnly = noBlockComments
@@ -134,7 +135,6 @@ test('页面：本拍明确不做输入框与 localStorage 暂存（按用户指
     .filter((line) => !line.trim().startsWith('//'))
     .join('\n');
 
-  assert.ok(!/<textarea/i.test(codeOnly), '本拍不做输入框');
-  assert.ok(!/localStorage/.test(codeOnly), '本拍不做答案暂存');
-  assert.ok(!/\binput\b/.test(codeOnly.replace(/EventSource|addEventListener|输入/g, '')), '本拍不做任何 input 元素');
+  assert.ok(/<textarea/i.test(codeOnly), '本拍应已加入作答输入框');
+  assert.ok(/localStorage/.test(codeOnly), '本拍应已加入答案暂存');
 });

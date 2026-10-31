@@ -25,7 +25,7 @@ import {
   TOKEN_FLUSH_CHARS,
 } from '@/lib/sse';
 import { callLLMStream, LlmError } from '@/lib/llm';
-import { loadSession, loadPersonas, currentQuestion, progressOf, loadAnchor } from '@/lib/session';
+import { loadSession, loadPersonas, currentQuestion, progressOf, loadAnchor, blockCountOf, candidateCountOf } from '@/lib/session';
 import { QUESTION_SYSTEM, buildQuestionUser, QuestionSchema, dimLabelOf } from '@/lib/prompts/question.v1';
 import { MODE_MATRIX } from '@/lib/state';
 import { q } from '@/lib/db';
@@ -133,6 +133,14 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
         // 若这一问题已经在 turns 里生成过（例如前端断线重连），直接重播，不重复烧预算
         if (cur.claimId && cur.anchor) {
+          const blockTotal = blockCountOf(session.docId);
+          // "已检索 N 处候选引用"：取这条 claim 所在维度下的候选条数。
+          // 该 claim 的维度要现查（anchor 里只带位置，不带维度）。
+          const dimRow = q.get(`select dimension from claims where id = ?`, cur.claimId);
+          const candidateTotal = candidateCountOf(
+            session.docId,
+            dimRow ? String(dimRow.dimension) : null,
+          );
           push(
             encodeEvent('meta', {
               persona: persona.name,
@@ -141,6 +149,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
               qTotal: progress.qTotal,
               claimId: cur.claimId,
               blockIdx: cur.anchor.blockIdx,
+              blockTotal,
+              candidateTotal,
               source: cur.anchor.source,
               page: cur.anchor.page,
               section: cur.anchor.section,
@@ -212,6 +222,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         }
 
         // meta 先于 token，前端才能立刻渲染"评委正在读这几行原文"
+        const blockTotal = blockCountOf(session.docId);
+        const candidateTotal = candidateCountOf(session.docId, String(pick.dimension));
         push(
           encodeEvent('meta', {
             persona: persona.name,
@@ -220,6 +232,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
             qTotal: progress.qTotal,
             claimId,
             blockIdx: anchor.blockIdx,
+            // blockTotal / candidateTotal 专供 L5 扫读思考态的进度数字：
+            //   BLOCK 3/10 · 已检索 5 处候选引用
+            blockTotal,
+            candidateTotal,
             source: anchor.source,
             page: anchor.page,
             section: anchor.section,

@@ -1,0 +1,232 @@
+/* ask.css —— 聊天页「作答区 + L5 扫读原文思考态」的样式
+ *
+ * 【这一拍新增的东西】
+ *   ① 输入框（**全站第一处允许圆角的地方**，6px —— §3.2「圆角只出现在输入框」）
+ *   ② L5 扫读原文思考态：真实 block 原文 + 一道朱红光带自上而下扫过 2.6s linear
+ *      + 进度数字 `BLOCK 3/10 · 已检索 5 处候选引用 · 本步 2.4s`
+ *
+ * 【动效账】本文件新增 §3.2 清单 #2「思考态原文扫读光带 2.6s linear」。
+ * 至此 4 处动效已用 3 处（① 光标闪烁 ③ 评委切换 180ms ② 扫读光带）。
+ * 只剩 #4「引用命中脉冲 320ms」留给阶段 5 —— **不许提前在这里做**。
+ *
+ * 硬规格：颜色走 token、字号只用 11 / 13.5 / 17、方角 + 1px 发丝线、
+ * 圆角只用于输入框（6px、且只此一处）。
+ */
+
+/* ── L5 扫读原文思考态 ───────────────────────────────── */
+.scan {
+  border: 1px solid var(--line);
+  background: var(--paper-3);
+  margin-top: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.scan-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.scan-head b {
+  color: var(--red);
+  font-weight: 600;
+}
+
+/* 原文面板：等宽字体，让它看起来像"正在被机器扫的文本" */
+.scan-body {
+  position: relative;
+  padding: 14px;
+}
+
+.scan-text {
+  position: relative;
+  z-index: 2;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/*
+ * 扫读光带：一道朱红光带自上而下扫过。
+ *
+ * 【为什么是 2.6s linear】
+ * §3.2 明写「思考态原文扫读光带 2.6s linear」。用 linear 而不是 ease，
+ * 是因为"扫读"应给人匀速穿过的感觉；ease 会在中段变快、两端变慢，看起来像忽快忽慢。
+ *
+ * 【为什么用 background-position 而不是 transform: translateY】
+ * background-position 只影响背景，**完全不改变布局**，也不会触发重排；
+ * 而 translateY 一个绝对定位块会盖在文本上，还得处理与文字的层叠关系。
+ * 这里用一个 3em 高的红色渐变带，靠 background-position 从 -3em 扫到 100%。
+ *
+ * 【为什么扫完一遍才停，而不是一出字完就停】
+ * 实测 meta→done 的窗口只有约 1.0s（模型首字 950ms、出字 950–1115ms），
+ * 而光带一个周期是 2.6s。若在 done 那一刻立刻停掉，用户只能看到光带扫到 40% 就被切断，
+ * 「扫读」这个动作根本没完成，思考可视化就变成了"闪一下"。
+ * 所以 is-settled 只把 animation-iteration-count 从 infinite 改成 1，
+ * 让它**把当前这一遍扫完**再停（由 animationend 把状态钉死）。
+ * 这样既守住 2.6s 的硬规格，又不会有"永远在扫"的假思考感。
+ */
+.scan-body::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--red-soft) 35%,
+    var(--red-line) 50%,
+    var(--red-soft) 65%,
+    transparent 100%
+  );
+  background-size: 100% 3em;
+  background-repeat: no-repeat;
+  animation: scan-sweep 2.6s linear infinite;
+}
+
+@keyframes scan-sweep {
+  from { background-position: 0 -3em; }
+  to   { background-position: 0 100%; }
+}
+
+/*
+ * 扫读完成：**不要立刻 animation:none**（那会把扫到一半的光带粗暴掐掉）。
+ * 改成 iterations=1 —— CSS 会让当前这一遍自然跑完再停。
+ */
+.scan.is-settled .scan-body::before {
+  animation-iteration-count: 1;
+}
+
+/*
+ * JS 在 animationend 之后（或兜底超时）打上 is-swept，这时才真正移除光带。
+ *
+ * 【为什么必须有 opacity:0 而不只是 animation:none】
+ * animation 停住时，光带的 background-position 会**冻结在它当时的位置**——
+ * 一个 2.6s 的动画若在 40% 处被停，那条红色渐变就永远横在原文中间，
+ * 看起来像"原文上盖了一条红杠"，比不动还难看。清掉背景才是真正移除。
+ */
+.scan.is-swept .scan-body::before {
+  animation: none;
+  background-image: none;
+  opacity: 0;
+}
+
+/* 光带关闭后给原文一个"已读"的左侧标记，让这一段仍可辨识 */
+.scan.is-settled::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--line-2);
+}
+
+/* ── 作答区 ─────────────────────────────────────────── */
+.answer {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  padding: 14px;
+}
+
+.answer-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.answer-label .restored {
+  color: var(--green);
+}
+
+/* 输入框：**全站唯一允许圆角的地方**（6px，§3.2） */
+.answer-input {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--ink);
+  background: var(--paper-3);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  padding: 10px 12px;
+  outline: none;
+}
+
+.answer-input:focus {
+  border-color: var(--red-line);
+}
+
+.answer-input::placeholder {
+  color: var(--line-2);
+}
+
+.answer-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.answer-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 提交按钮：方角 + 发丝线，不圆角（圆角只给输入框） */
+.answer-submit {
+  margin-left: auto;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  padding: 7px 18px;
+  color: var(--paper);
+  background: var(--red);
+  border: 1px solid var(--red);
+  cursor: pointer;
+}
+
+.answer-submit:disabled {
+  background: var(--line-2);
+  border-color: var(--line-2);
+  color: var(--paper-2);
+  cursor: not-allowed;
+}
+
+/* 说明：这一拍的作答"只记录不判分"（判分是阶段 4） */
+.answer-note {
+  font-size: 11px;
+  color: var(--line-2);
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+/* ── 窄屏 ── */
+@media (max-width: 720px) {
+  .scan-text {
+    font-size: 13.5px;
+  }
+}

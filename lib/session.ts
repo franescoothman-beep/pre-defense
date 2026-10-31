@@ -169,6 +169,27 @@ export function loadTurns(sessionId: string): TurnRow[] {
 }
 
 /**
+ * 这份材料总共有多少可扫读的文本块。
+ *
+ * 用途：L5 扫读原文思考态要显示 `BLOCK 19/42` —— 42 就是这个值。
+ * 为什么由服务端算：前端为了显示一个总数去拉全部 blocks 是浪费（101 页论文有 2437 块），
+ * 而且"总块数"属于材料自身的属性，和"这一段原文是什么"是同源数据，一起给才不会出现
+ * "显示的块号比总数还大"这种自相矛盾的画面。
+ */
+export function blockCountOf(docId: string): number {
+  const r = q.get(`select count(*) as n from blocks where doc_id = ?`, docId);
+  return Number(r?.n ?? 0);
+}
+
+/** 该质疑点所引用的 claim 之下，共有几条候选引用（L5 的"已检索 N 处候选引用"） */
+export function candidateCountOf(docId: string, dimension: string | null): number {
+  const r = dimension
+    ? q.get(`select count(*) as n from claims where doc_id = ? and dimension = ?`, docId, dimension)
+    : q.get(`select count(*) as n from claims where doc_id = ?`, docId);
+  return Number(r?.n ?? 0);
+}
+
+/**
  * 取某条 claim 的锚点（含 block 原文）。
  *
  * 「含 block 原文」这一点是 L5 扫读思考态的唯一数据来源：

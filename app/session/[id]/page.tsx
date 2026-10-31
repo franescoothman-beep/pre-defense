@@ -21,6 +21,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Bench, type BenchDimension, type BenchPersona } from '../../../components/Bench';
 import './session.css';
+import './ask.css';
 
 type ApiPersona = {
   id: string;
@@ -51,6 +52,10 @@ type SseMeta = {
   qTotal: number;
   claimId: string;
   blockIdx: number;
+  /** 这份材料共有多少块 —— L5 的 `BLOCK 3/10` 里的 10 */
+  blockTotal?: number;
+  /** 这条 claim 所在维度下有几条候选引用 —— L5 的「已检索 N 处候选引用」 */
+  candidateTotal?: number;
   source?: string;
   page?: number | null;
   section?: string | null;
@@ -84,6 +89,24 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const [streamText, setStreamText] = useState('');
   const [doneInfo, setDoneInfo] = useState<SseDone | null>(null);
   const [streamError, setStreamError] = useState<SseError | null>(null);
+
+  /** 作答文本（localStorage 暂存，刷新不丢） */
+  const [answer, setAnswer] = useState('');
+  /** 暂存是否被恢复过（用来在界面上如实提示"已恢复草稿"） */
+  const [restored, setRestored] = useState(false);
+
+  /**
+   * 扫读光带是否已经扫完一遍。
+   *
+   * 【为什么需要这个状态】光带一个周期 2.6s，而实测出字窗口只有约 1.0s。
+   * done 时若立刻把 animation 设成 none，用户只能看到光带扫到 40% 就被掐断 ——
+   * 「扫读」没完成。所以 done 只把 iterations 改成 1（CSS 会跑完当前这一遍），
+   * 再由本状态（animationend 触发，另有超时兜底）真正移除光带。
+   */
+  const [swept, setSwept] = useState(false);
+
+  /** localStorage 的键：带上 sessionId 与 turnId，保证"每一问各自的草稿"互不覆盖 */
+  const draftKey = sessionId && doneInfo?.turnId ? `rehearsal:draft:${sessionId}:${doneInfo.turnId}` : null;
 
   /** 持住 EventSource，卸载时一定要 close，否则组件换了它还在重连 */
   const esRef = useRef<EventSource | null>(null);
@@ -222,6 +245,35 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     };
   }, [sessionId]);
 
+  // ---------- 4) 作答草稿：localStorage 暂存（刷新不丢） ----------
+  //
+  // 【为什么按 turnId 分键】一场 quick 有 3 问。若只按 sessionId 存一个字符串，
+  // 第 2 问会覆盖第 1 问的草稿——用户回头改第 1 问时发现写的东西没了。
+  // 每一问各自一个键，才是"暂存"该有的语义。
+  useEffect(() => {
+    if (!draftKey) return;
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (saved) {
+        setAnswer(saved);
+        setRestored(true);
+      }
+    } catch {
+      // 隐私模式 / 存储被禁用：静默降级，不影响作答本身
+    }
+    // 只在键变化时读一次；后续输入由写入 effect 负责
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (!draftKey) return;
+    try {
+      if (answer.trim() === '') localStorage.removeItem(draftKey);
+      else localStorage.setItem(draftKey, answer);
+    } catch {
+      /* 存不进去也不能打断作答 */
+    }
+  }, [draftKey, answer]);
+
   const personas: BenchPersona[] = (data?.personas ?? []).map((p) => ({
     id: p.id,
     name: p.name,
@@ -232,6 +284,22 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
 
   const live = phase === 'opening' || phase === 'live';
   const showCursor = phase === 'opening' || phase === 'live';
+
+  /**
+   * 光带兜底：动画结束后一定移除；万一 animationend 没来（系统开了"减少动效"、
+   * 或某些浏览器在 background-position 上不触发 animationend），用 3.2s 超时兜住。
+   * 3.2s = 2.6s 一个周期 + 0.6s 余量，保证不会误伤正在跑的那一遍。
+   */
+  useEffect(() => {
+    if (live) {
+      setSwept(false);
+      return;
+    }
+    if (!meta?.source || swept) return;
+    const t = setTimeout(() => setSwept(true), 3200);
+    return () => clearTimeout(t);
+  }, [live, meta?.source, swept]);
+
   const currentPersonaName =
     meta?.persona ?? data?.personas.find((p) => p.id === data.currentPersonaId)?.name ?? '评委';
   const currentDim = data?.personas.find((p) => p.id === (meta?.personaId ?? data?.currentPersonaId))?.dimension;
@@ -286,6 +354,44 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                 </div>
               )}
 
+              {/*
+                L5 扫读原文思考态
+                —— 直接显示评委正在读的那段原文，一道朱红光带自上而下扫过 2.6s。
+                三件事必须同时成立，否则它就退化成一句空泛的"思考中"：
+                  ① 真实 block 文本（meta.source，服务端从 blocks 表取的整块原文）
+                  ② 进度数字（BLOCK n/N · 已检索 N 处候选引用）
+                  ③ 光带在"正在出字"时扫，done 之后停
+              */}
+              {meta && meta.source ? (
+                <section
+                  className={`scan${live ? '' : ' is-settled'}${swept ? ' is-swept' : ''}`}
+                  aria-label="评委正在读的原文"
+                  // 光带扫完一遍后打上 is-swept 真正移除它。
+                  // 用 onAnimationEnd 而不是固定延时：延时只能猜，事件是确定的。
+                  onAnimationEnd={() => setSwept(true)}
+                >
+                  <div className="scan-head">
+                    <b>BLOCK {meta.blockIdx}</b>
+                    <span>/ {meta.blockTotal ?? '—'}</span>
+                    <span>· 已检索 {meta.candidateTotal ?? '—'} 处候选引用</span>
+                    {meta.section ? <span>· {meta.section}</span> : null}
+                    <span>
+                      · 本步{' '}
+                      {live
+                        ? '…'
+                        : meta.replay
+                          ? '重播'
+                          : doneInfo?.meta?.latencyMs
+                            ? `${(doneInfo.meta.latencyMs / 1000).toFixed(1)}s`
+                            : '—'}
+                    </span>
+                  </div>
+                  <div className="scan-body">
+                    <p className="scan-text">{meta.source}</p>
+                  </div>
+                </section>
+              ) : null}
+
               {/* 错误条：服务端 fallback 原样展示 */}
               {streamError ? <div className="turn-error">{streamError.fallback}</div> : null}
 
@@ -294,21 +400,45 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                 {phase === 'opening' && '正在发言…'}
                 {phase === 'live' && `正在发言… 已收到 ${streamText.length} 字`}
                 {phase === 'done' && doneInfo?.turnId
-                  ? `发言结束 · 用时 ${doneInfo.meta?.latencyMs ?? '—'}ms · 转 ${doneInfo.meta?.model ?? '—'}`
+                  ? doneInfo.meta
+                    ? `发言结束 · 用时 ${doneInfo.meta.latencyMs}ms · 转 ${doneInfo.meta.model}`
+                    : '发言结束（重播，未调用模型）'
                   : null}
                 {phase === 'done' && !doneInfo?.turnId ? doneInfo?.message ?? '本场已结束' : null}
                 {phase === 'error' && `中断 · ${streamError?.code ?? 'error'}`}
                 {phase === 'idle' && '等待开场…'}
               </div>
 
-              {/* 说明这一拍范围（下一拍会换成输入框） */}
+              {/* 作答区：流结束后才出现（这一问说完了，才轮到你答） */}
               {phase === 'done' && doneInfo?.turnId ? (
-                <div className="chat-placeholder">
-                  <h2>这一问已说完</h2>
-                  <p>
-                    输入框（作答）与扫读原文思考态是下一拍的事。这一拍只验流式光标：
-                    出字时竖线闪烁，done 后立即消失。
-                  </p>
+                <div className="answer">
+                  <div className="answer-label">
+                    <span>你的回答</span>
+                    {restored ? <span className="restored">· 已恢复草稿</span> : null}
+                  </div>
+                  <textarea
+                    className="answer-input"
+                    value={answer}
+                    onChange={(e) => setAnswer(e.target.value)}
+                    placeholder="就这一问作答。先给结论，再给依据——评委接下来会顺着你说的追问。"
+                    aria-label="作答输入框"
+                  />
+                  <div className="answer-foot">
+                    <span className="answer-count">{answer.length} 字</span>
+                    <button
+                      className="answer-submit"
+                      type="button"
+                      disabled
+                      title="判分接口属阶段 4，本拍只验草稿暂存"
+                    >
+                      提交并判分（阶段 4）
+                    </button>
+                  </div>
+                  <div className="answer-note">
+                    草稿按「本场 + 本问」分别存到本地，刷新不丢。
+                    提交与判分属阶段 4 —— 这里故意做成禁用按钮，不做假提交：
+                    一个能点但什么都不发生的按钮，比一个明确禁用并注明原因的按钮更误导人。
+                  </div>
                 </div>
               ) : null}
             </>
