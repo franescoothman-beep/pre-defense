@@ -27,6 +27,10 @@
   --font-serif: 'Songti SC', 'SimSun', 'Noto Serif SC', Georgia, serif;
   --font-sans: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Cascadia Mono', Consolas, ui-monospace, monospace;
+
+  /* 方向 E 补充 token（阶段 1 上传页需要，按视觉稿同源取值） */
+  --ribbon-bg: #f7f3e9;
+  --red-deep: #8f2d23;
 }
 
 html,

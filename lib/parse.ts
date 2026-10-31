@@ -101,6 +101,46 @@ export function pagesToBlocks(pages: Array<{ page: number; paragraphs: string[] 
   return blocks;
 }
 
+/**
+ * 去页眉/页脚：论文每页顶部重复「论文题目」、底部重复「第 X 章 xxx」。
+ * 判据不是"长什么样"，而是**同一句话在 ≥30% 的页里重复出现且字数短**——
+ * 正文句子不会在几十页里一字不差地重复，页眉页脚会。
+ *
+ * 为什么必须做：这些行一旦进 blocks，就会变成一条可被 `block_idx` 命中的"原文"，
+ * 让模型引用到一句毫无信息量的重复页眉，直接污染引用命中率的可信度。
+ */
+export function dropRunningHeads(
+  pages: Array<{ page: number; paragraphs: string[] }>,
+  ratio = 0.3,
+): Array<{ page: number; paragraphs: string[] }> {
+  if (pages.length < 3) return pages; // 页数太少，重复不具统计意义，宁可不动
+
+  const pageCountOf = new Map<string, number>();
+  for (const { paragraphs } of pages) {
+    // 同一页内重复只算一次，避免一页里刷屏把计数灌水
+    const seen = new Set<string>();
+    for (const p of paragraphs) {
+      const key = norm(p);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      pageCountOf.set(key, (pageCountOf.get(key) ?? 0) + 1);
+    }
+  }
+
+  const minPages = Math.max(2, Math.ceil(pages.length * ratio));
+  // 页眉页脚都很短；长段落即使重复也不删（可能真是模板段落，但删了损失更大）
+  const isRunning = (p: string): boolean => {
+    const key = norm(p);
+    return p.length <= 40 && (pageCountOf.get(key) ?? 0) >= minPages;
+  };
+
+  return pages.map(({ page, paragraphs }) => ({
+    page,
+    paragraphs: paragraphs.filter((p) => !isRunning(p)),
+  }));
+}
+
+
 /** 材料体量判定：太薄会走"通用质询"降级（P2-薄材料） */
 export function densityOf(blocks: Block[]): DocDensity {
   const chars = blocks.reduce((s, b) => s + b.text.length, 0);

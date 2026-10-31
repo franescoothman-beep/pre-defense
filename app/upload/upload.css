@@ -1,0 +1,236 @@
+/* app/upload/upload.css —— 上传页样式（方向 E：暖纸 · 朱批）
+   所有颜色走 app/globals.css 的 token，这里不出现任何十六进制（铁律 9）。
+   尺寸按 §3.2 排版硬规格：字号仅 11 / 13.5 / 17 / 34 / 62 五级，字重仅 400/500/600。 */
+
+.ribbon {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 20px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--red);
+  border-bottom: 1px solid var(--line);
+  background: var(--ribbon-bg);
+}
+
+.ribbon b {
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+.ribbon span {
+  color: var(--muted);
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+}
+
+.shell {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 40px 20px 64px;
+}
+
+.wordmark {
+  font-family: var(--font-serif);
+  font-size: 34px;
+  letter-spacing: 0.24em;
+  line-height: 1;
+  margin: 0;
+  color: var(--ink);
+}
+
+.wordmark .dot {
+  color: var(--red);
+}
+
+.lede {
+  font-family: var(--font-serif);
+  font-size: 13.5px;
+  color: var(--ink-2);
+  line-height: 1.9;
+  margin: 14px 0 0;
+  max-width: 62ch;
+}
+
+.frame {
+  background: var(--paper);
+  border: 1px solid var(--line-2);
+  margin-top: 28px;
+}
+
+.drop {
+  padding: 44px 28px;
+  text-align: center;
+  border: 1px dashed var(--line-2);
+  margin: 20px;
+  transition: border-color 180ms, background-color 180ms;
+}
+
+.drop.hot {
+  border-color: var(--red);
+  background: var(--red-soft);
+}
+
+.drop .hint {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--ink);
+  margin: 0;
+}
+
+.drop .sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-top: 10px;
+}
+
+.btn {
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  padding: 9px 18px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line-2);
+}
+
+.bar {
+  height: 2px;
+  background: var(--line);
+  overflow: hidden;
+  margin: 0 20px;
+}
+
+.bar > i {
+  display: block;
+  height: 100%;
+  background: var(--red);
+  transition: width 240ms linear;
+}
+
+.stat {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.stat b {
+  color: var(--ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.err {
+  margin: 20px;
+  padding: 14px 16px;
+  border-left: 2px solid var(--red);
+  background: var(--red-soft);
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: var(--ink-2);
+}
+
+.err .code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--red-deep);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.hd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  padding: 14px 20px 8px;
+  margin: 0;
+}
+
+.preview {
+  border-top: 1px solid var(--line);
+}
+
+.preview .hd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  padding: 14px 20px 8px;
+}
+
+.blk {
+  padding: 10px 20px 14px;
+  border-left: 2px solid var(--red);
+  margin: 0 20px 10px;
+  background: var(--paper-3);
+}
+
+.blk .where {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--red);
+  margin-bottom: 4px;
+}
+
+.blk p {
+  font-family: var(--font-serif);
+  font-size: 13.5px;
+  line-height: 1.9;
+  color: var(--ink);
+  margin: 0;
+}
+
+.list {
+  border-top: 1px solid var(--line);
+}
+
+.list .row {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13.5px;
+}
+
+.list .row .nm {
+  font-family: var(--font-serif);
+  color: var(--ink);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list .row .mt {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
