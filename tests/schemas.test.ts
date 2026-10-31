@@ -29,6 +29,49 @@ test('ClaimsOut：非法枚举 → 拒绝', () => {
   assert.equal(bad.success, false);
 });
 
+// ── 真实模型的两个偏差（实测 DeepSeek 给出，见 ai-log 20261031-claims）──
+
+test('ClaimsOut：block_idx 被写成 "[3]" 时规整为数字 3（不整批报废）', () => {
+  const r = ClaimsOut.safeParse({
+    claims: [{ type: 'method', text: '样本代表性不足', block_idx: '[3]', kind: 'quote',
+      quote: '我们采集了某市三所小学一学期的课后服务记录', risk: 4, dimension: 'evidence' }],
+  });
+  assert.equal(r.success, true, '括号只是排版记号，不该让整批消失');
+  if (r.success) assert.equal(r.data.claims[0].block_idx, 3);
+});
+
+test('ClaimsOut：block_idx 的其他常见写法也能规整', () => {
+  for (const raw of ['3', '（3）', 'block 3', 'BLOCK 12']) {
+    const r = ClaimsOut.safeParse({
+      claims: [{ type: 'method', text: 'x'.repeat(6), block_idx: raw, kind: 'quote', quote: '一二三四五六七八', risk: 3, dimension: 'logic' }],
+    });
+    assert.equal(r.success, true, `${raw} 应被接受`);
+  }
+});
+
+test('ClaimsOut：block_idx 完全无数字 → 仍然拒绝（不编造）', () => {
+  const r = ClaimsOut.safeParse({
+    claims: [{ type: 'method', text: 'x'.repeat(6), block_idx: 'abc', kind: 'quote', quote: '一二三四五六七八', risk: 3, dimension: 'logic' }],
+  });
+  assert.equal(r.success, false, '规整不出来就必须失败，不能瞎猜');
+});
+
+test('ClaimsOut：dimension 误用 type 的值（"method"）→ 有依据地映射为 depth', () => {
+  const r = ClaimsOut.safeParse({
+    claims: [{ type: 'method', text: '共线性是否检验过', block_idx: 4, kind: 'quote',
+      quote: '并将活动类型作为哑变量处理', risk: 3, dimension: 'method' }],
+  });
+  assert.equal(r.success, true, '这是个明确的映射，不是猜测');
+  if (r.success) assert.equal(r.data.claims[0].dimension, 'depth');
+});
+
+test('ClaimsOut：dimension 给完全无关的值（"color"）→ 拒绝', () => {
+  const r = ClaimsOut.safeParse({
+    claims: [{ type: 'method', text: 'x'.repeat(6), block_idx: 1, kind: 'quote', quote: '一二三四五六七八', risk: 3, dimension: 'color' }],
+  });
+  assert.equal(r.success, false, '没有依据的值不许默认填充');
+});
+
 test('EvaluateOut：absence 必须带 scope', () => {
   const noScope = EvaluateOut.safeParse({
     score: 3, gaps: [], locators: [{ kind: 'absence', block_idx: 2, quote: '' }], followup: null,

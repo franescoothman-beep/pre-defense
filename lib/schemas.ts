@@ -4,6 +4,48 @@ import { z } from 'zod';
 export const DIM = z.enum(['logic', 'evidence', 'depth', 'expression']);
 export const CLAIM_TYPE = z.enum(['method', 'engineering', 'value']);
 
+/**
+ * 宽容的「块号」输入：接受 3、"[3]"、"（3）"、"block 3" 等常见写法，统一转成整数。
+ *
+ * 【为什么不在 schema 层直接拒绝】
+ * 实测真实 DeepSeek 会照抄 prompt 里的方括号，输出 `"block_idx": "[3]"`。
+ * 若这里只收 number，**整批 5 条会全部报废**——一个格式瑕疵让整批数据消失，
+ * 而内容本身是完全正确的。
+ *
+ * 边界很明确：只**规整格式**（去掉括号、空格、前缀），
+ * 绝不**猜测含义**（"大概是指第 3 块吧"）。规整不出来的仍然是 null → 由 schema 拒绝。
+ * 这条界线决定了我们是在"容错"还是在"编数据"。
+ */
+export const BlockIdxIn = z.preprocess((v) => {
+  if (typeof v === 'number' && Number.isInteger(v)) return v;
+  if (typeof v === 'string') {
+    const m = /\d+/.exec(v.replace(/[/\\]/g, ''));
+    if (m) return Number(m[0]);
+  }
+  return v; // 交给下面的 number 校验，让错误如实暴露
+}, z.number().int().nonnegative());
+
+/**
+ * 宽容的 dimension：模型会把 dimension 与 type 混用（实测给出 "method"）。
+ *
+ * 这里做一次**有依据的映射**，而不是丢弃：
+ *   method / engineering → depth（技术细节是否经得起追问）
+ *   value / innovation   → expression（价值叙述是否清楚）
+ * 两条映射都写在这里而不是散在业务代码里，便于审计。
+ * 若给了完全无关的值（如 "color"），仍然拒绝——不做无根据的默认填充。
+ */
+export const DimIn = z.preprocess((v) => {
+  if (typeof v !== 'string') return v;
+  const t = v.trim().toLowerCase();
+  const map: Record<string, string> = {
+    method: 'depth',
+    engineering: 'depth',
+    value: 'expression',
+    innovation: 'expression',
+  };
+  return map[t] ?? t;
+}, DIM);
+
 /** 引用：quote 类要 8–60 字；absence 类必须给 scope（"我查了这一段，没有"） */
 export const LocatorOut = z
   .object({
@@ -28,12 +70,12 @@ export const ClaimsOut = z.object({
       z.object({
         type: CLAIM_TYPE,
         text: z.string().min(4).max(120),
-        block_idx: z.number().int().nonnegative(),
+        block_idx: BlockIdxIn,
         kind: z.enum(['quote', 'absence']).default('quote'),
         quote: z.string().max(60).default(''),
         scope: z.string().max(60).optional(),
         risk: z.number().int().min(1).max(5),
-        dimension: DIM,
+        dimension: DimIn,
       }),
     )
     .max(12), // 单批上限：防止一次抽爆
