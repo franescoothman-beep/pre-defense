@@ -40,11 +40,113 @@
   letter-spacing: 0;
 }
 
-/* 正文区（这拍只有占位，不接流） */
+/* ── 问答流（这一拍：接流 + 光标；不含输入框、不含扫读思考态） ──
+ *
+ * 动效账：本文件新增 §3.2 清单里的 **#1「流式 token 光标闪烁 1.05s steps」**。
+ * 这是全站第 2 处动效（第 1 处是评审席的 180ms 切换）。
+ * 4 处清单：① token 光标闪烁 ② 扫读光带 ③ 评委切换 ④ 引用命中脉冲。
+ * 本文件只碰 ①，②③④ 分别属别的拍 —— 不许在这里顺手加。
+ */
+
 .chat-body {
   padding: 26px 18px 0;
 }
 
+/* 一条评委发言 */
+.turn {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  padding: 18px 20px 16px;
+}
+
+/* 发言头部：姓名（衬线 17）+ 维度（等宽 11） */
+.turn-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.turn-name {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+}
+
+.turn-dim {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+/* 问题正文：衬线 17，行高放宽（这是"评委在说话"，不是界面文案） */
+.turn-text {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  line-height: 1.95;
+  color: var(--ink);
+  margin: 0;
+}
+
+/*
+ * 流式光标：竖线块，1.05s steps(2,end) 明灭。
+ *
+ * 【为什么用 steps 而不是 fade】§3.2 写的是"闪烁"，不是"呼吸"。
+ * steps(2,end) 让它在两个离散状态间硬切，观感是打字机光标，而不是柔光呼吸。
+ *
+ * 【为什么是 inline-block + 一个不换行空格】
+ * 光标必须紧跟最后一个字、且不把行高撑开。用 inline-block 的 2px×1em 竖线，
+ * 并让它在文字流里独占一个极窄的位置——直接拼在文本后面不加空格会贴字太紧。
+ */
+.cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--red);
+  animation: cursor-blink 1.05s steps(2, end) infinite;
+}
+
+/* 用 steps(2, end)：只在完全亮/完全灭之间跳，不做渐变 */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+
+/* 流结束（done）：光标立刻消失，不留一个常亮的方块在那闪 */
+.cursor.is-done {
+  display: none;
+}
+
+/* 错误条：直接用服务端给的 fallback 文案（不要再翻译一次） */
+.turn-error {
+  border: 1px solid var(--red-line);
+  background: var(--red-soft);
+  padding: 14px 18px;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--red-deep);
+}
+
+/* 状态行：等宽 11，说明现在在等什么 */
+.chat-status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-top: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-status.is-live {
+  color: var(--red);
+}
+
+/* 占位（读取中）保持原样 */
 .chat-placeholder {
   border: 1px solid var(--line);
   background: var(--paper);
