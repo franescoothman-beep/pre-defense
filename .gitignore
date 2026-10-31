@@ -25,3 +25,7 @@ logs/
 
 # 临时提交信息（不入库）
 .commit-msg.txt
+
+# 录屏素材（体积大，本地留存；成品视频另行交付）
+docs/recordings/*.mp4
+docs/recordings/*.mkv
