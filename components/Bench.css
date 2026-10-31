@@ -84,26 +84,26 @@
 .seat-tag.t-depth { color: var(--dim-depth); }
 .seat-tag.t-expression { color: var(--dim-expression); }
 
-/* 呼吸点：当前说话的标识（与下划线共同构成"当前者"） */
+/* 呼吸点：当前说话的标识（与下划线共同构成"当前者"）
+ *
+ * 【为什么是静态方块而不是动画】
+ * §3.2 的动效硬规格写明"只允许 4 处，这次只做评委切换 180ms"。
+ * 呼吸点若加 1.05s steps 动画，就变成本拍的**第二处**动效，越过了"硬规格不许自己发挥"的线。
+ * 所以这里保留"点"这个标识（下划线之外的第二重指示，不依赖颜色辨识），
+ * 但**不动**：实心朱红方块＝正在说话，压暗小方块＝没轮到。
+ * 将来若要做"呼吸"，应当并入清单 #1「token 光标闪烁 1.05s steps」，而不是在这里各做一套。
+ */
 .seat-pulse {
   width: 6px;
   height: 6px;
   background: var(--red);
   margin-left: auto;
   align-self: center;
-  animation: seat-breathe 1.05s steps(2, end) infinite;
 }
 
-/* 用 steps 而不是渐变：视觉稿要求"呼吸"是离散跳动，不是柔光 */
-@keyframes seat-breathe {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.25; }
-}
-
-/* 已问过 / 未轮到的座位：呼吸点压暗且不动（动效 #3 的反面） */
+/* 已问过 / 未轮到的座位：点压暗（视觉上就是"这个人不在说话"） */
 .seat.is-past .seat-pulse,
 .seat.is-idle .seat-pulse {
-  animation: none;
   opacity: 0.2;
   background: var(--muted);
 }

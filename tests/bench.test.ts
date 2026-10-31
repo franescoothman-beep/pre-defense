@@ -57,14 +57,31 @@ test('Bench.tsx：状态只有 current / past / idle 三个，出现别的就是
   assert.deepEqual(states, ['current', 'past', 'idle']);
 });
 
-test('Bench.css：三态的视觉必须可分（current 有下划线、past 降透明度、idle 有呼吸点被压暗）', () => {
+test('Bench.css：三态的视觉必须可分（current 有下划线、past 降透明度、点的颜色不同）', () => {
   // 这三条是"评审席"能成立的全部：没有下划线看不出谁在说话，
-  // 没有降透明度看不出谁问过，呼吸点不动就只是装饰。
+  // 没有降透明度看不出谁问过，点的颜色不同才不用靠位置猜。
   const css = fs.readFileSync('components/Bench.css', 'utf8');
   assert.ok(css.includes('.seat.is-current::after'), 'current 必须有朱红下划线（::after 实现）');
   assert.ok(/\.seat\.is-past\s*\{[^}]*opacity/.test(css), 'past 必须降透明度');
-  assert.ok(/\.seat\.is-past \.seat-pulse|\.seat\.is-idle \.seat-pulse/.test(css), 'past/idle 的呼吸点必须与 current 不同');
+  assert.ok(
+    /\.seat\.is-past \.seat-pulse|\.seat\.is-idle \.seat-pulse/.test(css),
+    'past/idle 的点必须与 current 不同（压暗 + 换色）',
+  );
   assert.ok(css.includes('180ms'), '评委切换必须是 180ms（§3.2 动效 #3）');
+});
+
+test('Bench.css：本拍只允许 180ms 一处动效 —— 不许再出现 animation / @keyframes', () => {
+  // 【硬规格回归】用户要求"动效只允许 4 处，这次只做评委切换 180ms"。
+  // 曾经把"呼吸点"做成 1.05s steps 动画，等于在本拍悄悄加了第二处动效。
+  // 现在这条把它钉死：除 180ms 的 transition 之外，本文件不许有 animation / @keyframes。
+  const css = fs.readFileSync('components/Bench.css', 'utf8');
+  const stripped = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.equal(stripped.match(/animation\s*:/g), null, '不许有 animation 声明');
+  assert.equal(stripped.match(/@keyframes/g), null, '不许有 @keyframes');
+  // transition 只允许一个，且必须是 opacity 180ms
+  const transitions = [...stripped.matchAll(/transition\s*:\s*([^;]+)/g)];
+  assert.equal(transitions.length, 1, `transition 只允许 1 处，实际 ${transitions.length} 处`);
+  assert.ok(/opacity\s+180ms/.test(transitions[0][1]), `唯一的 transition 必须是 opacity 180ms，实际：${transitions[0][1]}`);
 });
 
 test('Bench.css：不许出现十六进制颜色（铁律 9：颜色只走 token）', () => {
