@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { MockBadge } from '@/components/MockBadge';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -9,7 +10,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body>
+        {/* MOCK 常驻角标：全局 header（§3.9「不标 = 评委以为你在编数据」）。
+            非 mock 模式下 isMockMode() 为 false，组件返回 null，不占位。 */}
+        <MockBadge variant="header" />
+        {children}
+      </body>
     </html>
   );
 }

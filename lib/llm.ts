@@ -22,7 +22,16 @@ import type { ZodType } from 'zod';
 import { z } from 'zod';
 import { readUpstream } from './sse';
 
-export type Phase = 'claims' | 'personas' | 'evaluate' | 'report';
+/**
+ * 四种阶段 + 一个提问阶段。
+ *
+ * 【为什么 `question` 必须单列，不能复用 `evaluate`】
+ * `evaluate` 是"判分 + 追问"（阶段 4），`question` 是"把某条质疑点展开成一句提问"。
+ * 两者若共用同一个 phase 键，mock 的回放游标会互相污染：
+ * 第 1 问会去取 evaluate 的第 1 条，而那条根本还没录 —— 表现为 E_MOCK_MISS（真实踩过）。
+ * 一个 phase 一个游标，是"序号驱动回放"能自洽的前提。
+ */
+export type Phase = 'claims' | 'personas' | 'question' | 'evaluate' | 'report';
 
 /** S6：单场预算上限 */
 export const MAX_CALLS_PER_SESSION = 30;
@@ -264,16 +273,36 @@ export function resetMockCursor(sessionKey: string): void {
 }
 
 async function callMock(input: CallInput): Promise<{ data: unknown; meta: CallMeta }> {
-  const { loadFixture } = await import('./mock');
+  const { loadFixture, loadAll } = await import('./mock');
+  const all = loadAll(input.phase);
   const seq = mockCursor.get(input.sessionKey) ?? 0;
   mockCursor.set(input.sessionKey, seq + 1);
 
-  const entry = loadFixture(input.phase, seq);
-  if (!entry) {
+  /**
+   * 【耗尽时循环回放，而不是报 E_MOCK_MISS】
+   *
+   * 真实踩过：`personas.json` 只有 1 条，而游标按 `personas:${docId}` 在同一进程内持续递增。
+   * 演示时每建一次会话就消耗一条 —— 第 2 次之后直接报「没有第 2 条 personas 回放数据」。
+   * 后果是**演示者连点几次就再也建不出会话**，而界面上看不出任何原因。
+   *
+   * 为什么循环是安全的：mock 是**序号驱动**（C15），同一场内顺序固定，
+   * 所以"第 n 次问话取第 (n mod total) 条"在一个演示会话内仍然自洽；
+   * 跨会话复用同一条人设也完全合理——人设本来就是"这份材料的固定三位评委"。
+   *
+   * 什么情况下仍然报错：`all.length === 0`，即**这个 phase 一条 fixture 都没有**。
+   * 那才是真正的剧本缺失，必须说清楚。
+   */
+  if (all.length === 0) {
     throw new LlmError(
       'E_MOCK_MISS',
-      `演示模式下没有第 ${seq + 1} 条「${input.phase}」回放数据。这通常意味着回放剧本与当前操作顺序不一致——演示模式只支持内置样例与固定回答顺序。`,
+      `演示模式下「${input.phase}」没有任何回放数据。这通常意味着这个环节的 fixture 还没录 —— 演示模式只支持内置样例与固定回答顺序。`,
     );
+  }
+
+  const idx = seq % all.length;
+  const entry = loadFixture(input.phase, idx);
+  if (!entry) {
+    throw new LlmError('E_MOCK_MISS', `演示模式下取不到「${input.phase}」的回放数据（第 ${idx + 1} 条）。`);
   }
 
   const checked = input.schema.safeParse(entry.response);
@@ -328,15 +357,23 @@ export async function* callLLMStream(input: CallInput): AsyncGenerator<string, {
   const started = Date.now();
 
   if (isMock()) {
-    const { loadFixture } = await import('./mock');
+    const { loadFixture, loadAll } = await import('./mock');
+    const all = loadAll(input.phase);
     const seq = mockCursor.get(input.sessionKey) ?? 0;
     mockCursor.set(input.sessionKey, seq + 1);
-    const entry = loadFixture(input.phase, seq);
-    if (!entry) {
+
+    // 与 callMock 同一套策略：耗尽则循环回放（序号驱动下是自洽的），
+    // 只有"一条 fixture 都没有"才报 E_MOCK_MISS。原因见 callMock 里的长注释。
+    if (all.length === 0) {
       throw new LlmError(
         'E_MOCK_MISS',
-        `演示模式下没有第 ${seq + 1} 条「${input.phase}」回放数据。这通常意味着回放剧本与当前操作顺序不一致——演示模式只支持内置样例与固定回答顺序。`,
+        `演示模式下「${input.phase}」没有任何回放数据。这通常意味着这个环节的 fixture 还没录 —— 演示模式只支持内置样例与固定回答顺序。`,
       );
+    }
+    const idx = seq % all.length;
+    const entry = loadFixture(input.phase, idx);
+    if (!entry) {
+      throw new LlmError('E_MOCK_MISS', `演示模式下取不到「${input.phase}」的回放数据（第 ${idx + 1} 条）。`);
     }
     // 把录制时的结构化响应拍平成"模型会输出的那段 JSON 文本"，再按字符吐出去
     const text = JSON.stringify(entry.response);

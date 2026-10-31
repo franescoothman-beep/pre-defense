@@ -84,9 +84,15 @@ test('L5：不能退化成一句"思考中"（不许只有文案没有原文）'
   const src = codeOf(pagePath);
   const scanIdx = src.indexOf('aria-label="评委正在读的原文"');
   assert.ok(scanIdx > 0, '扫读面板必须存在且自述用途');
-  // 扫读面板内必须出现 scan-text（承装原文）
-  const block = src.slice(scanIdx, scanIdx + 900);
+  // 【按结构边界切片，不用固定字数】
+  // 曾经用 `slice(scanIdx, scanIdx + 900)`，结果一改渲染逻辑(本步文案加了分支)，
+  // .scan-text 就被挤出 900 字窗口，测试误报。固定长度切片对源码不敏感，是脆弱的做法。
+  // 改成切到该 section 的闭合（下一个 `</section>`），与源码长度无关。
+  const end = src.indexOf('</section>', scanIdx);
+  assert.ok(end > scanIdx, '必须能定位到 section 结束');
+  const block = src.slice(scanIdx, end);
   assert.ok(block.includes('scan-text'), '扫读面板里必须有承载原文的 .scan-text');
+  assert.ok(block.includes('meta.source'), '扫读面板必须渲染 meta.source（真实 block 原文）');
 });
 
 test('输入框：是全站唯一允许圆角的地方，且必须正好 6px', () => {

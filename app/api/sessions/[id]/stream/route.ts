@@ -278,7 +278,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
         const gen = callLLMStream({
           sessionKey: session.id,
-          phase: 'evaluate',
+          // phase 必须是 'question' 而不是 'evaluate'：
+          // evaluate 属阶段 4（判分+追问），若共用一个 phase 键，
+          // mock 回放游标会去取 evaluate 的第 1 条（那条还没录）→ E_MOCK_MISS。
+          phase: 'question',
           system: QUESTION_SYSTEM,
           user: buildQuestionUser({
             persona: { name: persona.name, role: persona.role, tone: persona.tone, focus: persona.focus },

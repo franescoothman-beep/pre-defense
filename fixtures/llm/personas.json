@@ -1,0 +1,48 @@
+{
+  "notes": "MOCK 回放：三位评委人设 + 首问。由真实 key 跑 POST /api/sessions 后落盘。每位评委的 opening claim_id 均取自**自己席位的候选清单**（服务端有锚点归属校验，用同一条 claim 会被过滤成 1 位评委）。",
+  "seq": [
+    {
+      "inputHash": "doc:86322517-36ae-46cc-8dfa-300150d283dd",
+      "response": {
+        "personas": [
+          {
+            "name": "陈评委",
+            "role": "method",
+            "focus": "样本代表性与数据采集范围能否支撑推广结论",
+            "tone": "语速慢，逼你补数据",
+            "opening": [
+              {
+                "claim_id": "d6a27be9-0a1e-4a67-b489-17bc4e89641c",
+                "question": "三所小学一学期1240条记录，你依据什么判断这批样本能代表全市乃至全省的课后服务情况？"
+              }
+            ]
+          },
+          {
+            "name": "林教授",
+            "role": "method",
+            "focus": "相关到因果的逻辑跳跃与混杂控制",
+            "tone": "先肯定再追问",
+            "opening": [
+              {
+                "claim_id": "c0a1f8e2-ddc7-4e55-87f6-5a7afa495eca",
+                "question": "林教授：这条质疑点你怎么答？"
+              }
+            ]
+          },
+          {
+            "name": "赵评委",
+            "role": "value",
+            "focus": "模型相对现有研究的增量管理价值",
+            "tone": "直切要害，追问落地",
+            "opening": [
+              {
+                "claim_id": "88eaa02f-c09e-4272-aa71-d39ac226cec0",
+                "question": "赵评委：这条质疑点你怎么答？"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

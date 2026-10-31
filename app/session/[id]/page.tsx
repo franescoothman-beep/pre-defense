@@ -379,11 +379,16 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                       · 本步{' '}
                       {live
                         ? '…'
-                        : meta.replay
-                          ? '重播'
-                          : doneInfo?.meta?.latencyMs
-                            ? `${(doneInfo.meta.latencyMs / 1000).toFixed(1)}s`
-                            : '—'}
+                        : // mock 模式下 latencyMs 恒为 0（没有真实调用），
+                          // 若按数值判断会被当成"没有数据"而显示破折号。
+                          // 所以先按 mock 标记判，再按数值判。
+                          doneInfo?.meta?.mock
+                          ? '回放'
+                          : meta.replay
+                            ? '重播'
+                            : doneInfo?.meta?.latencyMs
+                              ? `${(doneInfo.meta.latencyMs / 1000).toFixed(1)}s`
+                              : '—'}
                     </span>
                   </div>
                   <div className="scan-body">
@@ -400,9 +405,11 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                 {phase === 'opening' && '正在发言…'}
                 {phase === 'live' && `正在发言… 已收到 ${streamText.length} 字`}
                 {phase === 'done' && doneInfo?.turnId
-                  ? doneInfo.meta
-                    ? `发言结束 · 用时 ${doneInfo.meta.latencyMs}ms · 转 ${doneInfo.meta.model}`
-                    : '发言结束（重播，未调用模型）'
+                  ? doneInfo.meta?.mock
+                    ? '发言结束（MOCK 回放，未调用模型）'
+                    : doneInfo.meta
+                      ? `发言结束 · 用时 ${doneInfo.meta.latencyMs}ms · 转 ${doneInfo.meta.model}`
+                      : '发言结束（重播，未调用模型）'
                   : null}
                 {phase === 'done' && !doneInfo?.turnId ? doneInfo?.message ?? '本场已结束' : null}
                 {phase === 'error' && `中断 · ${streamError?.code ?? 'error'}`}
