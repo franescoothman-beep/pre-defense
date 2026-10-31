@@ -90,7 +90,11 @@ export const PersonasOut = z.object({
         role: CLAIM_TYPE,
         focus: z.string().min(2).max(80),
         tone: z.string().min(1).max(40),
-        color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+        // 【不要 color】颜色由服务端按维度分配（§3.2「颜色只编码数据」）。
+        // 让模型给颜色，它会给出五种随意的高饱和色，破坏整个视觉体系；
+        // 更糟的是这里若把 color 设成必填，system prompt 又明文禁止模型输出它，
+        // 模型照 prompt 做 → zod 必然失败 → POST /api/sessions 100% 挂 502。
+        // 这个矛盾只有真实 key 会暴露：mock 回放里 fixture 是我自己写的，带不带 color 都不报错。
         opening: z
           .array(z.object({ claim_id: z.string().min(1), question: z.string().min(6).max(200) }))
           .min(1)

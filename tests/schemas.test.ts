@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ClaimsOut, ReportOut, EvaluateOut } from '../lib/schemas.ts';
+import { ClaimsOut, ReportOut, EvaluateOut, PersonasOut } from '../lib/schemas.ts';
 
 test('ClaimsOut：接受合法批次', () => {
   const ok = ClaimsOut.safeParse({
@@ -118,4 +118,45 @@ test('ReportOut：合法报告（material_risk 无分 + performance 有分）', 
     advice: '回答时先给分母再给数字。',
   });
   assert.equal(ok.success, true, ok.success ? '' : JSON.stringify(ok.error?.issues));
+});
+
+test('PersonasOut：模型按 prompt 输出（不含 color）→ 必须通过', () => {
+  // 【回归测试，对应 2026-10-31 真实 key 首跑暴露的 100% 阻断 Bug】
+  // system prompt 明文「不要输出 color 字段（服务端按维度分配传统色）」，
+  // 而旧 schema 把 color 设成必填（regex 校验）。两边矛盾的结果：
+  // 模型照 prompt 做 → 三元 zod 报错 → POST /api/sessions 直接 502，
+  // 整个阶段 3 的聊天入口打不开。mock 抓不到，因为 fixture 里的响应是手写的。
+  const ok = PersonasOut.safeParse({
+    personas: [
+      { name: '周评委', role: 'method', focus: '盯实验设计与数据口径', tone: '语速慢，逼你补数据',
+        opening: [{ claim_id: 'c1', question: '这批数据的标注口径是怎么统一的？' }] },
+      { name: '许教授', role: 'engineering', focus: '盯工程实现与可复现性', tone: '先肯定再追问',
+        opening: [{ claim_id: 'c2', question: '换台机器能跑出同样的结果吗？' }] },
+      { name: '陈老师', role: 'value', focus: '盯实际用途与推广边界', tone: '温和但咬住不放',
+        opening: [{ claim_id: 'c3', question: '这套方法离开这个场景还成立吗？' }] },
+    ],
+  });
+  assert.equal(ok.success, true, ok.success ? '' : JSON.stringify(ok.error?.issues));
+});
+
+test('PersonasOut：模型若自作主张带 color → 被 strip，不透传进库', () => {
+  const withColor = PersonasOut.safeParse({
+    personas: [
+      { name: '周评委', role: 'method', focus: '盯实验设计', tone: '语速慢', color: '#ff0000',
+        opening: [{ claim_id: 'c1', question: '标注口径怎么统一的？' }] },
+    ],
+  });
+  assert.equal(withColor.success, true, '多余字段不该让整批失败（与 ReportOut 的处理一致）');
+  if (withColor.success) {
+    // @ts-expect-error 运行时确认被剥离：颜色只能来自服务端 DIM_COLOR
+    assert.equal(withColor.data.personas[0].color, undefined);
+  }
+});
+
+test('PersonasOut：opening 的 claim_id 缺失 → 拒绝', () => {
+  const bad = PersonasOut.safeParse({
+    personas: [{ name: '周评委', role: 'method', focus: '盯实验设计', tone: '语速慢',
+      opening: [{ question: '标注口径怎么统一的？' }] }],
+  });
+  assert.equal(bad.success, false);
 });

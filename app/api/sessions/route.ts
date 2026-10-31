@@ -9,8 +9,11 @@ import { callLLM } from '@/lib/llm';
 import {
   PERSONAS_SYSTEM,
   buildPersonasUser,
+  planSeats,
+  seatClaimIds,
   PersonasSchema,
   DIM_COLOR,
+  DIM_LABEL,
   type ClaimForPersona,
 } from '@/lib/prompts/personas.v1';
 import { MODE_MATRIX, type SessionMode } from '@/lib/state';
@@ -38,7 +41,7 @@ export async function GET() {
 
 function loadClaims(docId: string): ClaimForPersona[] {
   const rows = q.all(
-    `select id, type, text, dimension, risk, page, section, quote, locator_kind, verified
+    `select id, type, text, dimension, risk, block_idx, page, section, quote, locator_kind, verified
      from claims where doc_id = ? order by risk desc`,
     docId,
   );
@@ -48,6 +51,7 @@ function loadClaims(docId: string): ClaimForPersona[] {
     text: String(r.text),
     dimension: String(r.dimension) as ClaimForPersona['dimension'],
     risk: Number(r.risk),
+    blockIdx: Number(r.block_idx),
     page: r.page === null ? null : Number(r.page),
     section: r.section === null ? null : String(r.section),
     quote: String(r.quote ?? ''),
@@ -106,6 +110,21 @@ async function handleCreate(req: Request): Promise<Response> {
     );
   }
 
+  const matrix = MODE_MATRIX[mode];
+
+  // 席位由服务端按材料真实分布排定；模型只负责"给每个席位一个名字与首问"
+  const seats = planSeats(claims, matrix.judges);
+  if (seats.length === 0) {
+    return Response.json(
+      {
+        ok: false,
+        code: 'E_NO_SEAT',
+        message: '这份材料的质疑点分布无法排出任何评委席位，请重新抽取质疑点。',
+      },
+      { status: 409 },
+    );
+  }
+
   // 人设由模型生成，但 **color 由服务端按维度分配**（不让模型决定视觉）
   let out;
   try {
@@ -113,7 +132,7 @@ async function handleCreate(req: Request): Promise<Response> {
       sessionKey: `personas:${docId}`,
       phase: 'personas',
       system: PERSONAS_SYSTEM,
-      user: buildPersonasUser(claims),
+      user: buildPersonasUser(claims, matrix.judges),
       schema: PersonasSchema,
       temperature: 0.3,
     });
@@ -131,19 +150,32 @@ async function handleCreate(req: Request): Promise<Response> {
       role: string;
       focus: string;
       tone: string;
-      color: string;
       opening: Array<{ claim_id: string; question: string }>;
     }>;
   }).personas;
 
-  // claim_id 存在性校验：模型编的 id 一律丢弃
   const claimById = new Map(claims.map((c) => [c.id, c]));
+
+  // 【锚点归属校验，比"存在性"更严】
+  // 只校验 claim_id 在库里存在是不够的：模型会"借用"别的席位的 claim，
+  // 结果一位 engineering 评委拿着 method 的质疑点开问（串味，DoD 第 1 条直接不达标）。
+  // 所以按席位一一对应：第 i 位评委的 opening 只能落在第 i 席的候选清单里。
+  // 席位不足时（模型少给或多给），按索引对齐，多余的直接丢弃。
   const validated = personasOut
-    .map((p) => {
-      const openings = p.opening.filter((o) => claimById.has(o.claim_id));
-      return { ...p, opening: openings };
+    .slice(0, seats.length)
+    .map((p, i) => {
+      const allowed = seatClaimIds(seats[i]);
+      const openings = p.opening.filter((o) => allowed.has(o.claim_id) && claimById.has(o.claim_id));
+      return { ...p, seat: seats[i], opening: openings };
     })
     .filter((p) => p.opening.length > 0);
+
+  if (validated.length < seats.length) {
+    // 席位没填满：说明模型没守住"只能从自己清单里选"，这是可解释的失败
+    console.warn(
+      `[POST /api/sessions] 席位未填满：期望 ${seats.length} 位，通过锚点归属校验的只有 ${validated.length} 位。`,
+    );
+  }
 
   if (validated.length === 0) {
     // 全部 opening 都对不上 → 这是明确的失败，不能"凑一个"糊过去
@@ -151,7 +183,7 @@ async function handleCreate(req: Request): Promise<Response> {
       {
         ok: false,
         code: 'E_NO_ANCHOR',
-        message: '生成的评委会问题没能对上任何一条已抽取的质疑点（锚点校验失败）。请重试一次。',
+        message: '生成的评委会问题没能对上任何一条属于自己的质疑点（锚点归属校验失败）。请重试一次。',
       },
       { status: 502 },
     );
@@ -159,7 +191,6 @@ async function handleCreate(req: Request): Promise<Response> {
 
   const sessionId = crypto.randomUUID();
   const now = new Date().toISOString();
-  const matrix = MODE_MATRIX[mode];
 
   const personaRows: PersonaRow[] = [];
   tx(() => {
@@ -175,18 +206,18 @@ async function handleCreate(req: Request): Promise<Response> {
       null,
     );
 
-    for (const p of validated.slice(0, matrix.judges)) {
+    for (const p of validated) {
       const pid = crypto.randomUUID();
-      // color 由服务端按该评委负责类型的首个候选 claim 的维度分配
-      const firstClaim = claimById.get(p.opening[0].claim_id);
-      const dim = firstClaim?.dimension ?? 'logic';
+      // role 与 color 都取自**服务端排定的席位**，不采信模型自己写的 role：
+      // 席位的维度决定了这位评委该问哪个面，颜色必须与那一面绑定（§3.2「颜色只编码数据」）。
+      // 若这里改用模型给的 role，就会出现"穿藕荷色衣服却在问逻辑链"的错位。
       const row: PersonaRow = {
         id: pid,
         name: p.name,
-        role: p.role,
+        role: p.seat.type,
         focus: p.focus,
         tone: p.tone,
-        color: DIM_COLOR[dim],
+        color: DIM_COLOR[p.seat.dim],
       };
       personaRows.push(row);
       q.run(
@@ -217,6 +248,16 @@ async function handleCreate(req: Request): Promise<Response> {
     maxTurns: matrix.maxTurns,
     judges: personaRows.length,
     personas: personaRows.map((p) => ({ id: p.id, name: p.name, role: p.role, focus: p.focus, tone: p.tone, color: p.color })),
+    // 【如实报覆盖】不假装材料有它没有的维度。
+    // 报告左栏 risk_score 按维度聚合，没有 claim 的维度会显示"未覆盖"（不填 0、不填均值）。
+    // 这里把"哪几维真的排上了席位、哪几维材料本身就没有"提前告诉前端，UI 才能诚实标注。
+    coverage: {
+      dimension: DIM_LABEL,
+      seated: seats.map((s) => ({ dimension: s.dim, label: DIM_LABEL[s.dim], type: s.type, claims: s.candidates.length })),
+      absent: (['logic', 'evidence', 'depth', 'expression'] as const).filter(
+        (d) => !seats.some((s) => s.dim === d),
+      ),
+    },
     question: {
       personaId: first.id,
       personaName: first.name,
@@ -224,7 +265,10 @@ async function handleCreate(req: Request): Promise<Response> {
       claimId: firstClaim.id,
       // 带着锚点出发：聊天页的"扫读原文思考态"要用它
       anchor: {
-        blockIdx: null, // 由 turns 表或 claims 查得，聊天页按 claimId 展开
+        // 【不能给 null】这是 L5「扫读原文思考态」定位 block 的唯一依据：
+        // 前端拿 blockIdx 去 blocks 表取那两行原文，才能显示"评委正在读的那句话"。
+        // 给 null 就等于把这个全场唯一的不可替代状态机砍掉，UI 只能退化成一句空泛的"思考中"。
+        blockIdx: firstClaim.blockIdx,
         claimId: firstClaim.id,
         page: firstClaim.page,
         section: firstClaim.section,
