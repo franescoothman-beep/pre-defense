@@ -194,6 +194,13 @@ async function handleCreate(req: Request): Promise<Response> {
 
   const personaRows: PersonaRow[] = [];
   tx(() => {
+    // 【必须先清掉这位材料上一轮的人设】
+    // personas 是按 doc_id 存的。若不清，用户在同一份材料上开第二场会话时，
+    // 表里会有 3+3=6 条、第三场 9 条……而 lib/session.ts 取"当前第几位评委"是按
+    // 这份材料的 personas 列表取模的 —— 多出来的旧人设会让评委轮转彻底错位
+    // （表现为"第 2 问还是第一位评委在问"）。人设属于"当前这一场"，不属于材料。
+    q.run(`delete from personas where doc_id = ?`, docId);
+
     q.run(
       `insert into sessions(id, doc_id, mode, drill_from, state, started_at, ended_at)
        values(?,?,?,?,?,?,?)`,
@@ -221,8 +228,8 @@ async function handleCreate(req: Request): Promise<Response> {
       };
       personaRows.push(row);
       q.run(
-        `insert into personas(id, doc_id, name, role, focus, tone, color, created_at)
-         values(?,?,?,?,?,?,?,?)`,
+        `insert into personas(id, doc_id, name, role, focus, tone, color, session_id, created_at)
+         values(?,?,?,?,?,?,?,?,?)`,
         pid,
         docId,
         row.name,
@@ -230,6 +237,7 @@ async function handleCreate(req: Request): Promise<Response> {
         row.focus,
         row.tone,
         row.color,
+        sessionId,
         now,
       );
     }

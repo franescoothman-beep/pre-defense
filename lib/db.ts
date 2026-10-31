@@ -57,7 +57,7 @@ function open(): DatabaseSync {
 
   CREATE TABLE IF NOT EXISTS personas(
     id TEXT PRIMARY KEY, doc_id TEXT, name TEXT, role TEXT,
-    focus TEXT, tone TEXT, color TEXT, created_at TEXT);
+    focus TEXT, tone TEXT, color TEXT, session_id TEXT, created_at TEXT);
 
   CREATE TABLE IF NOT EXISTS sessions(
     id TEXT PRIMARY KEY, doc_id TEXT, mode TEXT, drill_from TEXT,
@@ -67,7 +67,7 @@ function open(): DatabaseSync {
     id TEXT PRIMARY KEY, session_id TEXT, persona_id TEXT,
     seq INTEGER, round INTEGER, kind TEXT, question TEXT,
     answer TEXT, score REAL, gaps TEXT, locators TEXT,
-    verified_ok INTEGER, created_at TEXT);
+    verified_ok INTEGER, target_claim_id TEXT, created_at TEXT);
 
   CREATE TABLE IF NOT EXISTS reports(
     session_id TEXT PRIMARY KEY, material_risk TEXT, performance TEXT,
@@ -78,7 +78,28 @@ function open(): DatabaseSync {
     id TEXT PRIMARY KEY, phase TEXT, model TEXT, prompt_hash TEXT,
     tokens INTEGER, latency_ms INTEGER, ok INTEGER, created_at TEXT);
   `);
+
+  // 【列级迁移】CREATE TABLE IF NOT EXISTS 不会给**已存在的表**补列，
+  // 所以新增字段必须在这里显式 ALTER。漏了它的表现是：
+  // 开发机上"新库能跑、旧库报 no such column"，而评委/用户机器上一定是旧库。
+  // target_claim_id：这一问打在哪个质疑点上（SSE 的 meta 与「扫读原文」都靠它）。
+  ensureColumn(db, 'turns', 'target_claim_id', 'TEXT');
+  // session_id：人设属于"这一场会话"，不属于材料。旧库补列后该列为 NULL，
+  // 读取侧对 NULL 做兜底（见 lib/session.ts），保证老数据不炸。
+  ensureColumn(db, 'personas', 'session_id', 'TEXT');
+
   return db;
+}
+
+/**
+ * 幂等加列：表里没有这一列时才 ALTER。
+ * 用 pragma table_info 判断而不是"try/catch ALTER"，
+ * 因为后者会把真正的语法错误也一并吞掉。
+ */
+function ensureColumn(db: DatabaseSync, table: string, column: string, type: string): void {
+  const cols = db.prepare(`pragma table_info(${table})`).all() as Array<{ name?: string }>;
+  if (cols.some((c) => String(c.name) === column)) return;
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
 }
 
 /** 取连接：首次调用才建，之后复用进程内单例（dev 热重载也复用 globalThis） */

@@ -105,6 +105,21 @@ export const PersonasOut = z.object({
     .max(3),
 });
 
+/**
+ * 2.5) 单条提问（SSE 流式专用）
+ *
+ * 与 PersonasOut 分开的原因：人设只生成一次（把三个席位、名字、风格定下来），
+ * 而**每一次提问都要单独调一次模型**，且这次调用要流式吐字。
+ * 若把它们合在一起，quick 档三位评委就只能在创建会话时把三问全算好，
+ * 那样"追问"（阶段 4）就没法根据用户的回答动态出题了。
+ *
+ * 只给 `question` 一个字段，不给答分、不给 locator —— 出处由服务端按 claimId 装配，
+ * 模型无权在提问时更换锚点（换了锚点就等于可以随口编一个出处）。
+ */
+export const QuestionOut = z.object({
+  question: z.string().min(6).max(200),
+});
+
 /** 3) 判分 + 追问 */
 export const EvaluateOut = z
   .object({
