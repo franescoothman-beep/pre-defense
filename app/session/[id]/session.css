@@ -1,0 +1,75 @@
+/* app/session/[id]/session.css —— 聊天页骨架（不含评审席，那个在 components/Bench.css）
+ *
+ * 这拍只做"静态评审席横条"的承载页：
+ *   顶部信息带 + 评审席横条（组件）+ 一个明确的占位区。
+ * **明确不做**：输入框、流式正文、扫读思考态、localStorage 暂存（用户指令：别接流，别做输入框）。
+ *
+ * 硬规格：颜色走 token、字号只用 11 / 13.5 / 17、方角 + 1px 发丝线、0 个圆角。
+ */
+
+.chat-shell {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 0 64px;
+}
+
+/* 顶部信息带：等宽 11，与上传页 / 卡片页同款 */
+.chat-ribbon {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 10px 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--red);
+  border-bottom: 1px solid var(--line);
+  background: var(--ribbon-bg);
+}
+
+.chat-ribbon b {
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+.chat-ribbon span {
+  color: var(--muted);
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+}
+
+/* 正文区（这拍只有占位，不接流） */
+.chat-body {
+  padding: 26px 18px 0;
+}
+
+.chat-placeholder {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  padding: 22px 20px;
+}
+
+.chat-placeholder h2 {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: var(--ink);
+}
+
+.chat-placeholder p {
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: var(--muted);
+  margin: 0;
+}
+
+.chat-placeholder .mono-note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--line-2);
+  margin-top: 10px;
+}

@@ -57,7 +57,7 @@ function open(): DatabaseSync {
 
   CREATE TABLE IF NOT EXISTS personas(
     id TEXT PRIMARY KEY, doc_id TEXT, name TEXT, role TEXT,
-    focus TEXT, tone TEXT, color TEXT, session_id TEXT, created_at TEXT);
+    focus TEXT, tone TEXT, color TEXT, dimension TEXT, session_id TEXT, created_at TEXT);
 
   CREATE TABLE IF NOT EXISTS sessions(
     id TEXT PRIMARY KEY, doc_id TEXT, mode TEXT, drill_from TEXT,
@@ -87,6 +87,9 @@ function open(): DatabaseSync {
   // session_id：人设属于"这一场会话"，不属于材料。旧库补列后该列为 NULL，
   // 读取侧对 NULL 做兜底（见 lib/session.ts），保证老数据不炸。
   ensureColumn(db, 'personas', 'session_id', 'TEXT');
+  // dimension：这位评委盯哪个面。排席位时就算出来了，必须存下——
+  // 否则读取侧只能"按 color 反查"或"按首问 claim 猜"，两者都会在四维传统色一改时错位。
+  ensureColumn(db, 'personas', 'dimension', 'TEXT');
 
   return db;
 }

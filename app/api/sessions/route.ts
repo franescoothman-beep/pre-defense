@@ -28,6 +28,8 @@ type PersonaRow = {
   focus: string;
   tone: string;
   color: string;
+  /** 这位评委盯哪个面（决定横条标签色，也是报告左栏按维度聚合的依据） */
+  dimension: 'logic' | 'evidence' | 'depth' | 'expression';
 };
 
 export async function GET() {
@@ -225,11 +227,12 @@ async function handleCreate(req: Request): Promise<Response> {
         focus: p.focus,
         tone: p.tone,
         color: DIM_COLOR[p.seat.dim],
+        dimension: p.seat.dim,
       };
       personaRows.push(row);
       q.run(
-        `insert into personas(id, doc_id, name, role, focus, tone, color, session_id, created_at)
-         values(?,?,?,?,?,?,?,?,?)`,
+        `insert into personas(id, doc_id, name, role, focus, tone, color, dimension, session_id, created_at)
+         values(?,?,?,?,?,?,?,?,?,?)`,
         pid,
         docId,
         row.name,
@@ -237,6 +240,7 @@ async function handleCreate(req: Request): Promise<Response> {
         row.focus,
         row.tone,
         row.color,
+        p.seat.dim,   // dimension：排席位时就定了，存下来供读取侧直接用
         sessionId,
         now,
       );
@@ -255,7 +259,20 @@ async function handleCreate(req: Request): Promise<Response> {
     modeLabel: matrix.label,
     maxTurns: matrix.maxTurns,
     judges: personaRows.length,
-    personas: personaRows.map((p) => ({ id: p.id, name: p.name, role: p.role, focus: p.focus, tone: p.tone, color: p.color })),
+    // 【同时返回 dimension 与 color】前端横条要用 dimension 选四维传统色标签。
+    // 只给 color 的话，前端得把 #7c6a8a 反查回 "evidence" —— 那等于在展示层复制一份配色映射，
+    // 以后调色一改就错位。dimension 本来就是排席位时定下来的，直接给出去最省事也最不会错。
+    personas: personaRows.map((p) => ({
+      id: p.id,
+      name: p.name,
+      role: p.role,
+      focus: p.focus,
+      tone: p.tone,
+      color: p.color,
+      // dimension 从 row 直接带出：seat 与 persona 在 validated 过滤后可能错位，
+      // 用 row.dimension 才能保证"标签色"与"存库的那一面"是同一个值
+      dimension: p.dimension,
+    })),
     // 【如实报覆盖】不假装材料有它没有的维度。
     // 报告左栏 risk_score 按维度聚合，没有 claim 的维度会显示"未覆盖"（不填 0、不填均值）。
     // 这里把"哪几维真的排上了席位、哪几维材料本身就没有"提前告诉前端，UI 才能诚实标注。

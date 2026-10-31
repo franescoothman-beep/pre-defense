@@ -26,6 +26,8 @@ export type PersonaRow = {
   focus: string;
   tone: string;
   color: string;
+  /** 这位评委盯哪个面（排席位时定下的，决定横条标签的四维传统色） */
+  dimension: 'logic' | 'evidence' | 'depth' | 'expression' | null;
 };
 
 export type ClaimAnchor = {
@@ -71,53 +73,75 @@ export function loadSession(sessionId: string): SessionRow | null {
 /**
  * 取这一场的评委。
  *
- * 优先按 session_id 取（人设属于"这一场"）；旧库的行 session_id 为 NULL，
- * 这时回退到按 doc_id 取——保证升级前建的会话仍能打开（老数据不炸）。
- * 兜底必须带 limit，否则旧数据里同一 doc 的多轮人设会一起返回，
- * 让"当前第几位评委"的取模彻底错位。
+ * 三级取法（每一级都对应一个真实会发生的场景）：
+ *   ① 按 session_id —— 正常路径（人设属于"这一场"）
+ *   ② 按 doc_id 且 session_id 为 NULL —— 升级前的旧会话（迁移当时还没有这一列）
+ *   ③ 按 doc_id 最近一批 —— **兜底**：会话存在但人设没挂上 session_id
+ *      （例如脚本直接插 sessions 表、或迁移中断）。若不兜底，
+ *      页面会显示"这场会话没有评委"，而库里的评委其实好好的。
+ *      兜底必须带 limit，否则同一 doc 的多轮人设会一起返回，
+ *      让"当前第几位评委"的取模彻底错位。
  */
 export function loadPersonas(sessionId: string, docId: string, limit?: number): PersonaRow[] {
+  const cols = `id, name, role, focus, tone, color, dimension`;
   const mine = q.all(
-    `select id, name, role, focus, tone, color from personas
+    `select ${cols} from personas
      where session_id = ? order by created_at, rowid`,
     sessionId,
   );
+  if (mine.length > 0) {
+    const mapped = mine.map(mapPersonaRow);
+    return limit === undefined ? mapped : mapped.slice(0, limit);
+  }
 
-  const rows =
-    mine.length > 0
-      ? mine
-      : // 老数据兜底：这一场建的时候还没有 session_id 列
-        q.all(
-          `select id, name, role, focus, tone, color from personas
-           where doc_id = ? and (session_id is null) order by created_at desc, rowid`,
-          docId,
-        );
+  // ② 旧会话（session_id 列为 NULL）
+  const legacy = q.all(
+    `select ${cols} from personas
+     where doc_id = ? and (session_id is null) order by created_at desc, rowid`,
+    docId,
+  );
+  if (legacy.length > 0) {
+    const mapped = legacy.map(mapPersonaRow);
+    return limit === undefined ? mapped : mapped.slice(0, limit);
+  }
 
-  const mapped = rows.map((r) => ({
+  // ③ 兜底：按 doc 取最近一批，并明确告警（这不是正常路径，要能在日志里看到）
+  console.warn(
+    `[loadPersonas] 会话 ${sessionId} 没有挂上任何人设，回退到按 doc ${docId} 取最近一批。` +
+      `若这是正常建的会话，说明写 personas 时漏了 session_id。`,
+  );
+  const fallback = q.all(
+    `select ${cols} from personas where doc_id = ? order by created_at desc, rowid`,
+    docId,
+  );
+  const mapped = fallback.map(mapPersonaRow);
+  return limit === undefined ? mapped : mapped.slice(0, limit);
+}
+
+/** 行 → PersonaRow。dimension 为旧数据兜底：迁移前的行该列为 NULL，返回 null 由展示层处理。 */
+function mapPersonaRow(r: Record<string, unknown>): PersonaRow {
+  return {
     id: String(r.id),
     name: String(r.name),
     role: String(r.role),
     focus: String(r.focus),
     tone: String(r.tone),
     color: String(r.color),
-  }));
-  return limit === undefined ? mapped : mapped.slice(0, limit);
+    dimension:
+      r.dimension === null || r.dimension === undefined
+        ? null
+        : (String(r.dimension) as PersonaRow['dimension']),
+  };
 }
 
 /** 兼容旧调用点（按 doc 取）。新代码请用 loadPersonas(sessionId, docId, limit)。 */
 export function loadPersonasOfDoc(docId: string, limit?: number): PersonaRow[] {
   const rows = q.all(
-    `select id, name, role, focus, tone, color from personas where doc_id = ? order by created_at, rowid`,
+    `select id, name, role, focus, tone, color, dimension from personas
+     where doc_id = ? order by created_at, rowid`,
     docId,
   );
-  const mapped = rows.map((r) => ({
-    id: String(r.id),
-    name: String(r.name),
-    role: String(r.role),
-    focus: String(r.focus),
-    tone: String(r.tone),
-    color: String(r.color),
-  }));
+  const mapped = rows.map(mapPersonaRow);
   return limit === undefined ? mapped : mapped.slice(0, limit);
 }
 
