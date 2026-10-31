@@ -42,7 +42,7 @@ function open(): DatabaseSync {
   db.exec(`
   CREATE TABLE IF NOT EXISTS documents(
     id TEXT PRIMARY KEY, name TEXT, path TEXT, pages INTEGER, chars INTEGER,
-    mode TEXT, density TEXT, status TEXT, created_at TEXT);
+    mode TEXT, density TEXT, status TEXT, content_hash TEXT, created_at TEXT);
 
   CREATE TABLE IF NOT EXISTS blocks(
     id TEXT PRIMARY KEY, doc_id TEXT, idx INTEGER,
@@ -90,6 +90,11 @@ function open(): DatabaseSync {
   // dimension：这位评委盯哪个面。排席位时就算出来了，必须存下——
   // 否则读取侧只能"按 color 反查"或"按首问 claim 猜"，两者都会在四维传统色一改时错位。
   ensureColumn(db, 'personas', 'dimension', 'TEXT');
+  // content_hash：文件字节的 sha256。
+  // 用途有二：① 演示模式判定"是不是内置样例"的持久化依据；
+  // ② 材料列表按内容去重 —— 同一份文件反复上传会产生多个 docId（每次 UUID 都不同），
+  //    列表里就会出现一排一模一样的名字，看起来像系统在重复造数据。
+  ensureColumn(db, 'documents', 'content_hash', 'TEXT');
 
   return db;
 }

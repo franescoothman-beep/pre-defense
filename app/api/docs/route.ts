@@ -16,6 +16,7 @@ import { checkUpload, safeUploadName, displayNameOf, MAX_BYTES } from '@/lib/sec
 import { extract, toBlockRows, ExtractError } from '@/lib/extract';
 import { boundaryOf, parseMultipartFile } from '@/lib/multipart';
 import { q, tx } from '@/lib/db';
+import { checkDemoOnly, sha256Of } from '@/lib/demo';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -23,9 +24,41 @@ export const maxDuration = 60;
 const UPLOAD_DIR = path.join(process.cwd(), 'data', 'uploads');
 
 export async function GET() {
+  /**
+   * 材料列表：**按内容指纹去重，每组只留一条**。
+   *
+   * 为什么必须去重：每次上传都会生成新的 docId（UUID），所以同一份文件传两次
+   * 在库里就是两行。演示时反复重启、反复上传同一份内置样例，
+   * 列表会变成一排名字完全一样的条目 —— 看起来像系统在重复造数据，
+   * 而且让用户不知道该点哪一条。
+   *
+   * 【保留哪一条：优先"有 claims 且最多"的那条，其次最新】
+   * 这一条是实测踩出来的：一开始按"最新"保留，结果去重后留下的那条 claims=0，
+   * 而真正能演示的那条（12 条 claims）被挤掉了 —— 用户点进去发现没有质疑点，
+   * 还得重新抽一次。去重的目的是"别让同一份材料占多行"，
+   * 不是"把有用的那行删掉"。所以排序键是：claims 数降序 → 创建时间降序。
+   *
+   * 老数据 content_hash 为 NULL（迁移前上传的），用 id 兜底分组，不会误合并。
+   */
   const docs = q.all(
-    `select id, name, pages, chars, mode, density, created_at
-     from documents order by created_at desc limit 20`,
+    `select d.id, d.name, d.pages, d.chars, d.mode, d.density, d.created_at,
+       (select count(*) from claims c where c.doc_id = d.id) as claims
+     from documents d
+     where d.id in (
+       select id from (
+         select id,
+           row_number() over (
+             partition by coalesce(content_hash, id)
+             order by
+               (select count(*) from claims c where c.doc_id = documents.id) desc,
+               created_at desc
+           ) as rn
+         from documents
+       )
+       where rn = 1
+     )
+     order by d.created_at desc
+     limit 20`,
   );
   return Response.json({ ok: true, docs });
 }
@@ -119,6 +152,16 @@ async function handleUpload(req: Request): Promise<Response> {
     return fail(check.code, check.message, 400);
   }
 
+  // 【§3.9 前提①：演示模式只允许内置样例 —— 服务端硬拦，不靠前端置灰】
+  // 放在 checkUpload 之后、extract 之前：先过格式/体积闸，再判样例，
+  // 不合规的文件连解析都不做（省一次 pdfjs 初始化）。
+  // 前端置灰只是"友好提示"，直接 curl 可以绕过；服务端不拦的话，
+  // mock 会拿用户的无关材料去回放内置样例的剧本（表现为评委在问别处的数据）。
+  const demoGuard = checkDemoOnly(part.bytes, part.filename || 'upload.pdf');
+  if (demoGuard) {
+    return fail(demoGuard.code, demoGuard.message, 400);
+  }
+
   // 先在内存里解析：解析不出来的文件根本不该落盘，避免堆一堆没用的孤儿文件
   let parsed;
   try {
@@ -138,13 +181,16 @@ async function handleUpload(req: Request): Promise<Response> {
   const now = new Date().toISOString();
   const displayName = displayNameOf(part.filename || '未命名材料');
   const rows = toBlockRows(docId, parsed.blocks);
+  // 内容指纹：落库后，材料列表可以按它去重（同一份文件反复上传不再出现一排同名条目），
+  // 演示模式判定"是不是内置样例"也有持久化依据。
+  const contentHash = sha256Of(part.bytes);
 
   // 材料 + 全部文本块必须原子落库：只写进 documents 而块没了，
   // 后面所有 claim 的 block_idx 都会指向空——这种半成品数据比没有更糟。
   tx(() => {
     q.run(
-      `insert into documents(id, name, path, pages, chars, mode, density, status, created_at)
-       values(?,?,?,?,?,?,?,?,?)`,
+      `insert into documents(id, name, path, pages, chars, mode, density, status, content_hash, created_at)
+       values(?,?,?,?,?,?,?,?,?,?)`,
       docId,
       displayName,
       storedName,
@@ -153,6 +199,7 @@ async function handleUpload(req: Request): Promise<Response> {
       parsed.mode,
       parsed.density,
       'parsed',
+      contentHash,
       now,
     );
 

@@ -88,6 +88,98 @@
   margin-top: 10px;
 }
 
+/* ── 演示模式：上传置灰（§3.9 前提①「不静默接手」） ──
+ *
+ * 置灰不是"变半透明了事"：必须同时表达三件事
+ *   ① 现在不能传（视觉上明显不可交互）
+ *   ② 为什么不能传（上方 .mock-block 有完整说明）
+ *   ③ 下一步去哪（.mb-next 给一键进入内置样例）
+ *
+ * 只用 opacity 会让文字发虚、反而更像"加载中"，所以配合 default 光标与虚线边框变灰。
+ * 本文件不新增任何动效（4 处清单已用 3 处）。
+ */
+.drop.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  border-color: var(--line);
+  background: var(--paper-2);
+}
+
+.drop.disabled .hint {
+  color: var(--muted);
+}
+
+/* ── 演示模式说明块 ── */
+.mock-block {
+  margin: 20px 20px 0;
+  padding: 16px 18px;
+  border: 1px solid var(--red-line);
+  background: var(--red-soft);
+}
+
+.mock-block .mb-hd {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+
+.mock-block .mb-tx {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+  margin: 0;
+}
+
+.mock-block .mb-tx b {
+  color: var(--red-deep);
+}
+
+.mock-block .mb-how {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+
+.mock-block code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 5px;
+  border: 1px solid var(--line-2);
+  color: var(--ink-2);
+}
+
+/* 下一步入口：不能只拦住却不给出路 */
+.mock-block .mb-next {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--red-line);
+}
+
+.mock-block .mb-doc {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.mock-block .mb-doc.is-err {
+  color: var(--red-deep);
+}
+
+@media (max-width: 720px) {
+  .mock-block .mb-next {
+    align-items: flex-start;
+  }
+}
+
 .btn {
   font-family: var(--font-sans);
   font-size: 13.5px;
