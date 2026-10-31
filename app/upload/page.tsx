@@ -228,6 +228,11 @@ export default function UploadPage() {
                     <p>{b.text}</p>
                   </div>
                 ))}
+                <div style={{ padding: '4px 20px 18px' }}>
+                  <a className="btn" href={`/doc/${doc.docId}`} style={{ textDecoration: 'none', display: 'inline-block' }}>
+                    进入质疑点抽取 →
+                  </a>
+                </div>
               </div>
             </>
           )}

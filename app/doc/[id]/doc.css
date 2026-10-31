@@ -1,0 +1,236 @@
+/* app/doc/[id]/doc.css —— 质疑点卡片页（方向 E：暖纸 · 朱批）
+   颜色全部走 token，不出现十六进制（铁律 9）。
+   引用卡片的两种形态必须视觉可分（§3.2）：
+     quote 型  = 朱红 2px 实线左竖线 + ✓ 逐字命中（墨绿），可点开
+     absence 型 = **虚线**左竖线 + 灰色，标注"查过这几节，没有"，不可点开
+   把"缺失"渲染成可点开的引用，等于当场承认引用是编的。 */
+
+.ribbon {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 20px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--red);
+  border-bottom: 1px solid var(--line);
+  background: var(--ribbon-bg);
+}
+
+.ribbon b { font-weight: 600; letter-spacing: 0.14em; }
+.ribbon span { color: var(--muted); font-family: var(--font-sans); letter-spacing: 0; }
+
+.shell {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 36px 20px 64px;
+}
+
+.wordmark {
+  font-family: var(--font-serif);
+  font-size: 34px;
+  letter-spacing: 0.2em;
+  margin: 0;
+  color: var(--ink);
+}
+.wordmark .dot { color: var(--red); }
+
+.lede {
+  font-family: var(--font-serif);
+  font-size: 13.5px;
+  color: var(--ink-2);
+  line-height: 1.9;
+  margin: 12px 0 0;
+}
+
+.stat {
+  display: flex;
+  gap: 26px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.stat b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat .hit { color: var(--green); }
+.stat .miss { color: var(--red); }
+
+.cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 26px;
+}
+@media (max-width: 820px) {
+  .cols { grid-template-columns: 1fr; }
+}
+
+.col { min-width: 0; }
+
+.colhd {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-2);
+  margin-bottom: 12px;
+}
+.colhd .nm { font-family: var(--font-serif); font-size: 13.5px; color: var(--ink); }
+.colhd .n {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+.colhd i {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+  flex: none;
+}
+
+.card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  margin-bottom: 10px;
+  padding: 12px 14px 12px 0;
+  border-left: 2px solid var(--dim-logic);
+}
+
+.card.quote-line { border-left-color: var(--red); }
+.card.absence-line { border-left-style: dashed; border-left-color: var(--muted); }
+
+.card .body { padding-left: 12px; }
+
+.card .txt {
+  font-family: var(--font-serif);
+  font-size: 13.5px;
+  line-height: 1.85;
+  color: var(--ink);
+  margin: 0;
+}
+
+.card .meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.stars {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+.stars .on { color: var(--red); }
+.stars .off { color: var(--line-2); }
+
+.dimtag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.anchor {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: var(--red);
+  border: 1px solid var(--red-line);
+  padding: 1px 5px;
+  margin-top: 6px;
+}
+
+.anchor.absence {
+  color: var(--muted);
+  border-style: dashed;
+  border-color: var(--line-2);
+}
+
+.toggle {
+  margin-top: 8px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--ink-2);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line-2);
+  padding: 0 0 1px;
+  cursor: pointer;
+}
+
+.src {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  font-family: var(--font-serif);
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--ink-2);
+}
+.src .where {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 6px;
+  display: block;
+}
+/* quote 高亮：用文本切分渲染，绝不 dangerouslySetInnerHTML（S3） */
+.src .hi {
+  background: var(--red-soft);
+  border-bottom: 1px solid var(--red-line);
+  color: var(--ink);
+}
+
+.empty {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  padding: 10px 0;
+}
+
+.btn {
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  padding: 9px 18px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.err {
+  margin-top: 20px;
+  padding: 14px 16px;
+  border-left: 2px solid var(--red);
+  background: var(--red-soft);
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: var(--ink-2);
+}
+.err .code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--red-deep);
+  display: block;
+  margin-bottom: 4px;
+}

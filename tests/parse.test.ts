@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { itemsToParagraphs, cleanParagraphs, pagesToBlocks, paragraphsToBlocks, densityOf } from '../lib/parse.ts';
+import {
+  itemsToParagraphs,
+  cleanParagraphs,
+  pagesToBlocks,
+  paragraphsToBlocks,
+  densityOf,
+  isSection,
+  dropRunningHeads,
+} from '../lib/parse.ts';
 
 // 模拟中文 PDF：每个字一个 item，y 有抖动
 function glyphItems(text: string, y = 100) {
@@ -54,4 +62,63 @@ test('densityOf：薄材料判定（<10 块或 <1500 字 → thin）', () => {
   // 真正达到 normal：块数 ≥10 且字数 ≥1500
   const normal = paragraphsToBlocks(Array.from({ length: 12 }, (_, i) => `第 ${i} 段。` + '正文内容填充，'.repeat(20)));
   assert.equal(densityOf(normal), 'normal');
+});
+
+// ── isSection：真实文档的标题形态（这里的每一条都是踩过的坑）────────
+
+test('isSection：「数字 + 点 + 空格 + 汉字」必须识别为标题', () => {
+  // 早期正则只允许"数字后直接跟汉字"，导致「1. 研究背景与意义」漏判，
+  // cleanParagraphs 会把标题与下一段正文合并成一块 → section 全错位
+  assert.equal(isSection('1. 研究背景与意义'), true);
+  assert.equal(isSection('3. 实验结果'), true);
+});
+
+test('isSection：「数字 + 顿号」与「中文数字 + 顿号」', () => {
+  assert.equal(isSection('1、绪论'), true);
+  assert.equal(isSection('一、绪论'), true);
+});
+
+test('isSection：多级编号与「第X章」', () => {
+  assert.equal(isSection('1.2 研究现状'), true);
+  assert.equal(isSection('2.1.3 实验结果'), true);
+  assert.equal(isSection('第3章 实验与结果'), true);
+  assert.equal(isSection('第三节 方法论'), true);
+});
+
+test('isSection：正文段落与超长行不算标题', () => {
+  assert.equal(isSection('本研究针对中小学校内课后服务的管理效率问题，提出一套基于行为记录的评估模型。'), false);
+  // 行首虽是数字编号，但整行太长 → 仍是正文
+  assert.equal(
+    isSection('1. ' + '这是一段很长的正文内容，'.repeat(5)),
+    false,
+    '超过 48 字必须判为正文',
+  );
+});
+
+test('isSection：标题行不被 cleanParagraphs 与下一段合并', () => {
+  const raw = ['1. 研究背景与意义', '本研究针对中小学校内课后服务的管理效率问题，提出一套评估模型。'];
+  const out = cleanParagraphs(raw);
+  assert.equal(out.length, 2, '标题必须独立成段');
+  assert.equal(out[0], '1. 研究背景与意义');
+});
+
+// ── dropRunningHeads：去页眉页脚 ─────────────────────────────
+
+test('dropRunningHeads：跨页重复的短行被删，正文不被删', () => {
+  const pages = Array.from({ length: 5 }, (_, i) => ({
+    page: i + 1,
+    paragraphs: ['某某大学硕士学位论文标题', '第' + (i + 1) + '章 正文内容各不相同，用于验证不重复的行会被保留。'],
+  }));
+  const out = dropRunningHeads(pages);
+  assert.equal(out[0].paragraphs.length, 1, '重复页眉应被删掉');
+  assert.match(out[0].paragraphs[0], /正文内容各不相同/);
+});
+
+test('dropRunningHeads：页数太少（<3）时不动手', () => {
+  const pages = [
+    { page: 1, paragraphs: ['重复行', '正文一。'] },
+    { page: 2, paragraphs: ['重复行', '正文二。'] },
+  ];
+  const out = dropRunningHeads(pages);
+  assert.equal(out[0].paragraphs.length, 2, '2 页的重复不具统计意义，宁可不动');
 });
