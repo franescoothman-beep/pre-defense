@@ -82,12 +82,34 @@ test('checkUpload：MIME 声明与扩展名不符 → E_MIME', () => {
   if (!r.ok) assert.equal(r.code, 'E_MIME');
 });
 
-test('checkUpload：文件头不是 PDF → E_MAGIC（改名骗不过去）', () => {
+test('checkUpload：文件头是可识别的非白名单格式 → E_MISMATCH（改名骗不过去）', () => {
+  // 【口径变更说明，2026-11-01】旧断言期望 E_MAGIC。当时 sniffKind 只认 pdf/docx，
+  // 于是「.exe 改名成 .pdf」落到 E_MAGIC，用户看到的是"文件可能已损坏"。
+  // 那是**说错了拒绝理由**：文件没坏，是有人改了扩展名。
+  // 现在 checkUpload 会先查 foreignKindOf（已知的 MZ/PNG/ELF/7z 等文件头），
+  // 能识别出来就给 E_MISMATCH —— 更准确，也更能让用户明白该怎么修。
+  // 识别不出来的乱码仍然走 E_MAGIC（见下一条测试）。
   const r = checkUpload({
     name: '论文.pdf',
     type: 'application/pdf',
     size: 1024,
     bytes: pad(EXE_HEAD, 1024),
+  });
+  assert.equal(r.ok, false);
+  if (!r.ok) {
+    assert.equal(r.code, 'E_MISMATCH', '能识别的外部格式应报"内容与扩展名不符"，而不是"文件损坏"');
+    assert.match(r.message, /EXE|实际是/, '拒绝理由必须说清真实情况');
+  }
+});
+
+test('checkUpload：文件头是认不出来的乱码 → E_MAGIC（不瞎猜是什么格式）', () => {
+  // 这是 E_MAGIC 现在唯一该触发的场景：内容不是任何已知格式。
+  // 若这里也报 E_MISMATCH，就等于宣称"我知道它是什么"——而我们并不知道。
+  const r = checkUpload({
+    name: '乱码.pdf',
+    type: 'application/pdf',
+    size: 1024,
+    bytes: new Uint8Array(1024).fill(0x00),
   });
   assert.equal(r.ok, false);
   if (!r.ok) {

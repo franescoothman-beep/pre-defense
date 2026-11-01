@@ -21,6 +21,7 @@ import { createHash } from 'node:crypto';
 import type { ZodType } from 'zod';
 import { z } from 'zod';
 import { readUpstream } from './sse';
+import { HARD_LIMITS } from './state';
 
 /**
  * 四种阶段 + 一个提问阶段。
@@ -70,6 +71,60 @@ export type CallMeta = {
 
 /** 进程内预算：key 是会话 id，值是已用次数 */
 const budget = new Map<string, number>();
+
+/**
+ * 进程内并发闸（S6：并发 ≤2）。
+ *
+ * 【为什么必须有它】预算只数"调了几次"，挡不住"同时在调几次"。
+ * 实测场景：用户在聊天页连点两次「提交」，或开两个标签页刷新重连，
+ * 服务端会同时起两条流 —— 上游限流时两条都会超时，用户两条都收不到；
+ * 而账单是双份的。并发闸是第一道也是唯一一道能在这个进程内生效的闸。
+ *
+ * 【为什么是 2 而不是 1】一条流在出字时，另一条"重新出题"是正常操作
+ * （用户切换档位/重连），把它们串成绝对单飞会让体验明显变慢。
+ * 2 是"允许一个正常并行"的最小值。
+ */
+const inflight = new Map<string, number>();
+
+/**
+ * S6 并发闸（≤2）的拒绝。
+ *
+ * 它**不是** LlmError：语义上"没调用成功"和"根本没开始调"是两件事，
+ * 混在一个类型里会让上层把"上一条还在出字"当成"模型挂了"去降级。
+ */
+export class ConcurrencyError extends Error {
+  code = 'E_CONCURRENCY' as const;
+  /** 上限值带出来，前端文案与日志都不用再硬编码一遍 2 */
+  limit: number;
+  constructor(limit: number) {
+    super(`本场同时进行的模型调用已达上限 ${limit} 次，请等当前这条回答结束。`);
+    this.name = 'ConcurrencyError';
+    this.limit = limit;
+  }
+}
+
+/** 占一个并发位；调用方必须在 finally 里 release */
+function acquire(sessionKey: string): void {
+  const n = inflight.get(sessionKey) ?? 0;
+  if (n >= HARD_LIMITS.maxConcurrentCalls) throw new ConcurrencyError(HARD_LIMITS.maxConcurrentCalls);
+  inflight.set(sessionKey, n + 1);
+}
+
+function release(sessionKey: string): void {
+  const n = inflight.get(sessionKey) ?? 0;
+  if (n <= 1) inflight.delete(sessionKey);
+  else inflight.set(sessionKey, n - 1);
+}
+
+/** 当前占用的并发位（测试与 health 自检用） */
+export function inflightOf(sessionKey: string): number {
+  return inflight.get(sessionKey) ?? 0;
+}
+
+/** 测试用：清零并发计数（真实场景不该调用） */
+export function resetInflight(): void {
+  inflight.clear();
+}
 
 export function budgetLeft(sessionId: string): number {
   return MAX_CALLS_PER_SESSION - (budget.get(sessionId) ?? 0);
@@ -352,8 +407,19 @@ export async function* callLLMStream(input: CallInput): AsyncGenerator<string, {
       `本场已用尽 ${MAX_CALLS_PER_SESSION} 次模型调用预算。请结束本场并出报告。`,
     );
   }
+  // S6 并发闸：在流式入口**同步**占位，避免"两条流都通过了预算检查"的竞态。
+  // 注意 acquire 必须在任何 await 之前，否则两条并发的流都能看到"还有空位"。
+  acquire(input.sessionKey);
   budget.set(input.sessionKey, used + 1);
 
+  try {
+    return yield* streamBody(input);
+  } finally {
+    release(input.sessionKey);
+  }
+}
+
+async function* streamBody(input: CallInput): AsyncGenerator<string, { data: unknown; meta: CallMeta }, void> {
   const started = Date.now();
 
   if (isMock()) {
@@ -513,11 +579,15 @@ export async function callLLM(input: CallInput): Promise<{ data: unknown; meta: 
       `本场已用尽 ${MAX_CALLS_PER_SESSION} 次模型调用预算。请结束本场并出报告。`,
     );
   }
+  // S6 并发闸：占位与预算计数必须**同一拍**完成，中间不许 await
+  acquire(input.sessionKey);
   budget.set(input.sessionKey, used + 1);
 
-  const out = isMock() ? await callMock(input) : await callReal(input);
-
-  await logCall(out.meta, 1);
-
-  return out;
+  try {
+    const out = isMock() ? await callMock(input) : await callReal(input);
+    await logCall(out.meta, 1);
+    return out;
+  } finally {
+    release(input.sessionKey);
+  }
 }

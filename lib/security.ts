@@ -89,6 +89,37 @@ export function sniffKind(bytes: Uint8Array): DocKind | null {
 }
 
 /**
+ * 识别「已知的非白名单格式」的文件头。
+ *
+ * 【为什么需要它 —— 这是 E_MISMATCH 永远走不到的那个分支】
+ * 之前 E_MISMATCH 只会在「扩展名 pdf + 内容其实是 docx（zip 头）」时触发，
+ * 因为 sniffKind 只认白名单里的两种格式。而最典型的攻击
+ * ——把 .exe 改名成 .pdf——sniffKind 返回 null，直接落到 E_MAGIC，
+ * 用户看到的是"文件可能已损坏"，而真实情况是"你改过扩展名"。
+ * 拒绝理由说错，和安全没做是两回事：前者会让用户反复重传一个永远传不上的文件。
+ *
+ * 这张表只用于**生成更准确的拒绝理由**，绝不用于放行任何东西。
+ */
+const FOREIGN_MAGICS: Array<{ label: string; bytes: number[] }> = [
+  { label: 'EXE/DLL', bytes: [0x4d, 0x5a] }, // MZ
+  { label: 'PNG', bytes: [0x89, 0x50, 0x4e, 0x47] },
+  { label: 'JPEG', bytes: [0xff, 0xd8, 0xff] },
+  { label: 'GIF', bytes: [0x47, 0x49, 0x46, 0x38] },
+  { label: 'ZIP/RAR 等压缩包', bytes: [0x52, 0x61, 0x72, 0x21] }, // Rar!
+  { label: '7z', bytes: [0x37, 0x7a, 0xbc, 0xaf] },
+  { label: 'ELF', bytes: [0x7f, 0x45, 0x4c, 0x46] },
+];
+
+/** 已知的外部格式名（用于更准确的拒绝理由）；不认识返回 null */
+export function foreignKindOf(bytes: Uint8Array): string | null {
+  for (const f of FOREIGN_MAGICS) {
+    if (bytes.length < f.bytes.length) continue;
+    if (f.bytes.every((b, i) => bytes[i] === b)) return f.label;
+  }
+  return null;
+}
+
+/**
  * S1 总闸。`bytes` 只需要前若干字节（路由层读满即可，20MB 内存无压力）。
  *
  * 判定顺序：体积 → 扩展名 → MIME → 魔数 → 扩展名与魔数是否一致。
@@ -134,6 +165,17 @@ export function checkUpload(input: {
 
   const byMagic = sniffKind(bytes);
   if (!byMagic) {
+    // 【先查"是不是一个已知的别的格式"】这决定用户看到哪一句话。
+    // "文件可能已损坏"会让用户一遍遍重传同一个文件；
+    // "你上传的其实是一个 EXE"才会让他明白问题在哪。
+    const foreign = foreignKindOf(bytes);
+    if (foreign) {
+      return {
+        ok: false,
+        code: 'E_MISMATCH',
+        message: `文件扩展名是 ${spec.ext}，但内容实际是 ${foreign}，已拒绝。请上传真正的 ${spec.ext.toUpperCase()} 文件。`,
+      };
+    }
     return {
       ok: false,
       code: 'E_MAGIC',

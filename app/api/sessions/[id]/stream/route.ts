@@ -24,10 +24,9 @@ import {
   SSE_HARD_TIMEOUT_MS,
   TOKEN_FLUSH_CHARS,
 } from '@/lib/sse';
-import { callLLMStream, LlmError } from '@/lib/llm';
-import { loadSession, loadPersonas, currentQuestion, progressOf, loadAnchor, blockCountOf, candidateCountOf } from '@/lib/session';
+import { callLLMStream, LlmError, ConcurrencyError } from '@/lib/llm';import { loadSession, loadPersonas, currentQuestion, progressOf, loadAnchor, blockCountOf, candidateCountOf, loadTurns } from '@/lib/session';
 import { QUESTION_SYSTEM, buildQuestionUser, QuestionSchema, dimLabelOf } from '@/lib/prompts/question.v1';
-import { MODE_MATRIX } from '@/lib/state';
+import { MODE_MATRIX, mainsDoneOf } from '@/lib/state';
 import { q } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -156,6 +155,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
               section: cur.anchor.section,
               locatorKind: cur.anchor.locatorKind,
               verified: cur.anchor.verified,
+              // 追问沿用主问的锚点（咬住同一条再深一层），前端要标「（追问）」
+              kind: cur.isFollowup ? 'followup' : 'question',
               replay: true,
             }),
           );
@@ -163,7 +164,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
           // 条件与 lib/session.ts 的 currentQuestion 保持一致：
           // 必须「问题已生成、用户未答」，否则会把一条半成品 turn 的空字符串重播成一片空白。
           const pending = q.get(
-            `select id, question from turns
+            `select id, question, kind from turns
              where session_id = ? and (answer is null or answer = '')
                and question is not null and question != ''
              order by seq limit 1`,
@@ -173,7 +174,12 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
           for (let i = 0; i < text.length; i += TOKEN_FLUSH_CHARS) {
             push(encodeEvent('token', { t: text.slice(i, i + TOKEN_FLUSH_CHARS) }));
           }
-          push(encodeEvent('done', { turnId: pending ? String(pending.id) : null, state: session.state, progress }));
+          push(encodeEvent('done', {
+            turnId: pending ? String(pending.id) : null,
+            turnKind: pending ? String(pending.kind) : 'question',
+            state: session.state,
+            progress,
+          }));
           clearTimeout(timer);
           stream.close();
           return;
@@ -183,7 +189,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         // 候选池 = 这份材料里本场还没问过的 claim（全局去重 §3.8 附加规则：
         // 同一 claim 一场内不可被重复 targeting，否则三位评委容易围着同一个点各问一遍）。
         const askedIds = (q.all(
-          `select target_claim_id from turns where session_id = ? and target_claim_id is not null`,
+          `select distinct target_claim_id from turns where session_id = ? and target_claim_id is not null`,
           session.id,
         ) as Array<Record<string, unknown>>).map((r) => String(r.target_claim_id));
 
@@ -241,6 +247,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
             section: anchor.section,
             locatorKind: anchor.locatorKind,
             verified: anchor.verified,
+            kind: 'question',
           }),
         );
 
@@ -251,6 +258,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         // 而且不会报错。任何给这张表加列的改动，都要同时检查这里与列清单。
         const turnId = crypto.randomUUID();
         const seq = progress.answered + 1;
+        // round = 主问序号（1 起）。追问继承所属主问的 round（见 lib/state.ts 顶部注释）：
+        // 旧的 `Math.ceil(seq / judges)` 会把 quick 档的 3 个主问全塞进 round 1，
+        // 于是"本轮追问几次"永远算错。
+        const round = mainsDoneOf(loadTurns(session.id)) + 1;
         q.run(
           `insert into turns(id, session_id, persona_id, seq, round, kind, question, answer, target_claim_id, created_at)
            values(?,?,?,?,?,?,?,?,?,?)`,
@@ -258,7 +269,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
           session.id,                // session_id
           persona.id,                // persona_id
           seq,                       // seq
-          Math.ceil(seq / matrix.judges), // round
+          round,                     // round
           'question',                // kind
           '',                        // question（流式产出中先空着，done 时补写）
           '',                        // answer（用户还没答，空串比 null 好查询）
@@ -346,6 +357,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         push(
           encodeEvent('done', {
             turnId,
+            turnKind: 'question',
             state: 'ASKING',
             progress,
             meta: finalMeta,
@@ -355,8 +367,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         clearTimeout(timer);
         stream.close();
       } catch (e) {
-        const err = e as LlmError | Error;
-        const code = (err as LlmError).code ?? 'E_INTERNAL';
+        const err = e as (LlmError & Error) | Error;
+        const code = err instanceof ConcurrencyError ? 'E_CONCURRENCY' : ((err as LlmError).code ?? 'E_INTERNAL');
         // 【必须留服务端日志】SSE 只能给前端一句 fallback，真正的堆栈只有这里看得到。
         // 阶段 3 第一次真实跑这个路由时，正是因为漏了这行，前端只收到"内部错误"，
         // 排查时无从下手（错误信息没有进入任何可读的地方）。

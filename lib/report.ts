@@ -150,4 +150,27 @@ export function actionabilityOf(claims: ClaimRow[]) {
   return { total, absence, ratio: total ? absence / total : 0 };
 }
 
+/** 报告的对外结构（落库行 → JSON）。GET /api/reports/:id 与 POST /end 共用，避免两处结构分叉。 */
+export function reportPayloadOf(row: Record<string, unknown>, sessionId: string) {
+  const parse = <T>(v: unknown, fallback: T): T => {
+    if (v === null || v === undefined) return fallback;
+    try {
+      return JSON.parse(String(v)) as T;
+    } catch {
+      // 落库的 JSON 坏了不能让报告页整页挂掉：退回空结构，页面显示"本栏无数据"
+      return fallback;
+    }
+  };
+  return {
+    sessionId,
+    material_risk: parse(row.material_risk, []),
+    performance: parse(row.performance, []),
+    coverage: parse(row.coverage, null),
+    high_risk: parse(row.high_risk, []),
+    advice: String(row.advice ?? ''),
+    delta: row.delta === null || row.delta === undefined ? null : parse(row.delta, null),
+    createdAt: row.created_at === null || row.created_at === undefined ? null : String(row.created_at),
+  };
+}
+
 export type BlockRef = Pick<Block, 'idx' | 'page' | 'section'>;

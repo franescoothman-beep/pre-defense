@@ -39,7 +39,7 @@ export type SseMeta = {
 };
 
 export type SseError = {
-  code: 'timeout' | 'bad_json' | 'schema' | 'no_key' | 'http' | 'budget' | 'aborted' | 'internal';
+  code: 'timeout' | 'bad_json' | 'schema' | 'no_key' | 'http' | 'budget' | 'busy' | 'aborted' | 'internal';
   /** 人话兜底文案。前端直接展示这句，不要再翻译一次。 */
   fallback: string;
 };
@@ -311,6 +311,10 @@ export function errorToSse(code: string, message?: string): SseError {
     E_NO_KEY: 'no_key',
     E_HTTP: 'http',
     E_BUDGET: 'budget',
+    E_MOCK_MISS: 'internal',
+    // S6 并发闸（lib/llm.ts 的 ConcurrencyError）。它不是一个"错误"，
+    // 而是"上一条还没出完字"——文案要说清这一点，否则用户会以为系统坏了。
+    E_CONCURRENCY: 'busy',
   };
   const fallback: Record<SseError['code'], string> = {
     timeout: '（评委停顿了一下，请再问一次）',
@@ -319,6 +323,7 @@ export function errorToSse(code: string, message?: string): SseError {
     no_key: '（当前未配置模型密钥，无法提问）',
     http: '（网络不稳，评委没听清，请再问一次）',
     budget: '（本场提问次数已达上限，请结束并出报告）',
+    busy: '（上一条还在出字，等这一条说完再继续）',
     aborted: '（本场已中断）',
     internal: '（内部错误，请重试）',
   };

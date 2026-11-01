@@ -215,7 +215,7 @@
   cursor: not-allowed;
 }
 
-/* 说明：这一拍的作答"只记录不判分"（判分是阶段 4） */
+/* 说明：作答会真的提交并判分（阶段 4）。草稿仍然本地暂存。 */
 .answer-note {
   font-size: 11px;
   color: var(--line-2);
@@ -224,9 +224,203 @@
   letter-spacing: 0.04em;
 }
 
+/* ── 缎带上的「结束并出报告」（C11 的出口，任何时刻可点） ── */
+.ribbon-end {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  padding: 5px 12px;
+  color: var(--red);
+  background: transparent;
+  border: 1px solid var(--red-line);
+  cursor: pointer;
+}
+
+.ribbon-end:hover:not(:disabled) {
+  background: var(--red-soft);
+}
+
+.ribbon-end:disabled {
+  color: var(--line-2);
+  border-color: var(--line-2);
+  cursor: not-allowed;
+}
+
+/* ── 追问标记 ── */
+.turn-followup {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--red);
+  border: 1px solid var(--red-line);
+  padding: 1px 6px;
+}
+
+/* ── 判分面板 ── */
+.verdict {
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--red);
+  background: var(--paper-2);
+  padding: 12px 16px;
+  margin-top: 14px;
+}
+
+.verdict-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.verdict-label {
+  color: var(--muted);
+}
+
+/* 分数：衬线大字，是这一栏唯一的主数字 */
+.verdict-score {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.verdict-of,
+.verdict-pct {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 机检结论：命中绿、未命中灰（**不用红色**：未命中是"没验证到"，不是"错"） */
+.verdict-verified {
+  margin-left: auto;
+  letter-spacing: 0.06em;
+}
+
+.verdict-verified.is-ok {
+  color: var(--green);
+}
+
+.verdict-verified.is-bad {
+  color: var(--line-2);
+}
+
+.verdict-degraded {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+/* 缺口：编号列表，每条一行 */
+.verdict-gaps {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.verdict-gaps li {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+  padding-left: 14px;
+  position: relative;
+}
+
+.verdict-gaps li::before {
+  content: '·';
+  position: absolute;
+  left: 2px;
+  color: var(--red);
+}
+
+.verdict-empty {
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: 10px 0 0;
+}
+
+/* 出处条：quote 可点开（阶段 5），absence 灰显不可点 */
+.verdict-locators {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.locator {
+  border: 1px solid var(--line-2);
+  padding: 2px 7px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 逐字命中：边框转朱红 = "这句确实在原文里" */
+.locator.is-hit {
+  border-color: var(--red-line);
+  color: var(--red);
+}
+
+/* absence：虚线灰显，明确"不可点开" */
+.locator-absence {
+  border-style: dashed;
+  color: var(--line-2);
+}
+
+/* ── 本场结束 ── */
+.ended {
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--red);
+  background: var(--paper);
+  padding: 20px;
+  margin-top: 16px;
+}
+
+.ended-title {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+
+.ended-reason {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+
+.ended-report {
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  padding: 8px 20px;
+  color: var(--paper);
+  background: var(--red);
+  border: 1px solid var(--red);
+  cursor: pointer;
+}
+
+.ended-report:disabled {
+  background: var(--line-2);
+  border-color: var(--line-2);
+  color: var(--paper-2);
+  cursor: not-allowed;
+}
+
 /* ── 窄屏 ── */
 @media (max-width: 720px) {
   .scan-text {
     font-size: 13.5px;
+  }
+  .ribbon-end {
+    margin-left: 0;
   }
 }

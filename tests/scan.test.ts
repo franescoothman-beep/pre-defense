@@ -105,13 +105,21 @@ test('输入框：是全站唯一允许圆角的地方，且必须正好 6px', (
   assert.ok(inputBlock.includes('border-radius: 6px'), '圆角必须属于 .answer-input');
 });
 
-test('输入框：提交按钮保持禁用（不做假提交骗人）', () => {
+test('输入框：提交按钮已接通判分（阶段 4 到位后不再禁用占位）', () => {
+  // 【口径变更说明，2026-11-01】阶段 3 的临时约定是"按钮禁用 + 写明属阶段 4"，
+  // 因为那时 /answer 还不存在，做一个点了没反应的按钮比明确禁用更误导人。
+  // 阶段 4 落了 /answer 之后，这个临时约定完成了它的使命：
+  // 现在按钮必须真的提交、真的判分、真的推进流程。
+  // 若这里还断言"禁用"，等于要求产品保持半成品状态。
   const src = codeOf(pagePath);
   const idx = src.indexOf('answer-submit');
   assert.ok(idx > 0, '必须有提交按钮');
   const block = src.slice(idx, idx + 260);
-  assert.ok(block.includes('disabled'), '阶段 4 才有判分接口，这里必须禁用');
-  assert.ok(block.includes('阶段 4'), '必须写明为什么禁用，别让人以为是坏的');
+  assert.ok(block.includes('onClick'), '提交按钮必须接 onClick（不许是个死按钮）');
+  // 只在"提交中 / 内容为空"时禁用，那不是占位而是防连点与防空提交
+  assert.ok(block.includes('submitting'), '必须防连点（提交中禁用）');
+  // 旧占位文案不许回来
+  assert.ok(!block.includes('判分接口属阶段 4'), '阶段 4 已到位，不许再挂"属阶段 4"的占位说明');
 });
 
 test('暂存：草稿按「本场 + 本问」分键，不能只用 sessionId', () => {

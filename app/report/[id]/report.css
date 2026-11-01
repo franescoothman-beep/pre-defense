@@ -1,0 +1,635 @@
+/* app/report/[id]/report.css —— 报告页（方向 E：朱批 · 多材质）
+ *
+ * 【这一页承担的事】
+ *   它是"体检报告"的落地页：左栏材料风险（可改）、右栏临场表现（可练）。
+ *   两栏必须**视觉可分**，因为它们是两件不同的事：
+ *     · 材料风险是"你交上来的东西有洞" → 越大越糟，高值用朱红
+ *     · 临场表现是"你今天答得怎么样" → 越大越好，高值用竹青
+ *   C14 铁律：两者**不许共名字、不许共颜色映射**。这里用两组完全不同的类名与色阶。
+ *
+ * 【动效账】本页 **不新增动效**。
+ *   4 处清单的 #4「引用命中脉冲 320ms」属于阶段 5 的引用卡片定稿——
+ *   这里只做静态可点开，不抢那一处动效的额度。
+ *
+ * 硬规格：颜色走 token、字号只用 11 / 13.5 / 17、方角 + 1px 发丝线、0 个圆角。
+ */
+
+.report-shell {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 18px 72px;
+}
+
+/* ── 深墨封面带：全站唯一的深色块，报告的身份 ── */
+.report-cover {
+  background: var(--ink);
+  color: var(--paper-3);
+  border-bottom: 2px solid var(--red);
+}
+
+.report-cover-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 30px 18px 26px;
+}
+
+.report-kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: var(--red-line);
+  display: block;
+  margin-bottom: 10px;
+}
+
+.report-title {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0 0 12px;
+  color: var(--paper-3);
+}
+
+.report-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.report-degraded {
+  color: var(--red-line);
+}
+
+/* ── 覆盖缺口条 ── */
+.report-coverage {
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--red);
+  background: var(--paper-2);
+  padding: 10px 14px;
+  margin: 18px 0 16px;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.report-coverage b {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--red);
+}
+
+/* ── 两栏 ── */
+.report-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.report-col {
+  min-width: 0;
+}
+
+.report-col-title {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 18px 0 10px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.report-polarity {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--line-2);
+  margin-left: auto;
+}
+
+/* ── 左栏：材料风险卡（越大越危险 → 朱红） ── */
+.risk-card {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  padding: 13px 15px;
+  margin-bottom: 10px;
+}
+
+.risk-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-bottom: 9px;
+}
+
+.risk-dim {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--ink);
+}
+
+.risk-score {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+/* 危险等级：朱红的三个明度档（只编码数据） */
+.risk-score.is-high { color: var(--red); }
+.risk-score.is-mid  { color: var(--red-deep); }
+.risk-score.is-low  { color: var(--muted); }
+
+.risk-claims {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.risk-uncovered,
+.perf-uncovered {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--line-2);
+  margin-left: auto;
+  border: 1px dashed var(--line-2);
+  padding: 1px 7px;
+}
+
+/* "本场未问到这一维"：有分但没答过 —— 与"材料无此维"是两件事，标注要能区分 */
+.risk-unasked {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+
+/* 风险条：长度=分值 */
+.risk-bar {
+  height: 3px;
+  background: var(--line);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.risk-bar i {
+  display: block;
+  height: 100%;
+  background: var(--red);
+}
+
+/* 中低档风险条换成更浅的红（仍属同一套语义，不是另起一个颜色体系） */
+.risk-bar i.is-mid { background: var(--red-deep); opacity: 0.75; }
+.risk-bar i.is-low { background: var(--line-2); }
+
+.risk-comment {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+  margin: 0;
+}
+
+.risk-locators {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+/* 引用按钮：可点的方角灰框；命中转朱红；absence 虚线灰显且 disabled */
+.locator-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.locator-btn:hover:not(:disabled) {
+  border-color: var(--red-line);
+  color: var(--red);
+}
+
+.locator-btn.is-hit {
+  border-color: var(--red-line);
+  color: var(--red);
+}
+
+.locator-btn.is-absence {
+  border-style: dashed;
+  color: var(--line-2);
+  cursor: default;
+}
+
+.locator-btn:disabled {
+  cursor: default;
+}
+
+/* ── 右栏：临场表现卡（越大越好 → 竹青） ── */
+.perf-card {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  padding: 13px 15px;
+  margin-bottom: 10px;
+}
+
+.perf-head {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-bottom: 9px;
+}
+
+.perf-dim {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--ink);
+}
+
+.perf-score {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--green);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.perf-track {
+  height: 3px;
+  background: var(--line);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.perf-track i {
+  display: block;
+  height: 100%;
+  background: var(--green);
+}
+
+.perf-comment {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+  margin: 0;
+}
+
+/* ── 被引用的原文（点开引用后就地展开） ── */
+.report-opened {
+  border: 1px solid var(--red-line);
+  background: var(--paper-2);
+  padding: 13px 15px;
+  margin: 18px 0 0;
+}
+
+.opened-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.opened-head b {
+  color: var(--red);
+  font-weight: 600;
+}
+
+.opened-verified {
+  color: var(--line-2);
+}
+
+.opened-verified.is-ok {
+  color: var(--green);
+}
+
+.opened-close {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  background: transparent;
+  border: 1px solid var(--line-2);
+  color: var(--muted);
+  padding: 1px 8px;
+  cursor: pointer;
+}
+
+.opened-body {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  line-height: 1.9;
+  color: var(--ink);
+  margin: 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--red-line);
+}
+
+.opened-body.is-absence {
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  color: var(--ink-2);
+  border-left-style: dashed;
+}
+
+.opened-note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--line-2);
+  margin: 10px 0 0;
+}
+
+/* ── 高风险清单 ── */
+.report-high {
+  margin-top: 6px;
+}
+
+.high-item {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  padding: 13px 15px;
+  margin-bottom: 10px;
+}
+
+.high-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.high-rank {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--red);
+  font-weight: 600;
+}
+
+.high-dim {
+  color: var(--ink-2);
+}
+
+.high-risk {
+  color: var(--red-deep);
+}
+
+.high-actionable {
+  margin-left: auto;
+  color: var(--green);
+  border: 1px solid var(--green);
+  padding: 1px 7px;
+}
+
+.high-text {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+
+.high-q,
+.high-why,
+.high-sug {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+  margin: 0 0 6px;
+}
+
+.high-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-right: 8px;
+  display: inline-block;
+}
+
+.high-quote {
+  font-family: var(--font-serif);
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: var(--muted);
+  margin: 8px 0 0;
+  padding-left: 10px;
+  border-left: 1px solid var(--line-2);
+}
+
+.high-where {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--line-2);
+  display: block;
+  margin-top: 8px;
+}
+
+/* ── 总建议 ── */
+.report-advice {
+  margin-top: 6px;
+}
+
+.report-advice p {
+  font-size: 13.5px;
+  line-height: 1.85;
+  color: var(--ink-2);
+  margin: 0;
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--red);
+  background: var(--paper);
+  padding: 15px 17px;
+  white-space: pre-wrap;
+}
+
+/* ── 审议轨迹 ── */
+.report-trajectory {
+  margin-top: 6px;
+}
+
+.tr-item {
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--line-2);
+  background: var(--paper);
+  padding: 12px 15px;
+  margin-bottom: 9px;
+}
+
+.tr-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 7px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tr-seq {
+  color: var(--line-2);
+}
+
+.tr-name {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.tr-kind {
+  color: var(--red);
+  border: 1px solid var(--red-line);
+  padding: 1px 6px;
+}
+
+.tr-dim {
+  color: var(--ink-2);
+}
+
+.tr-score {
+  margin-left: auto;
+  color: var(--green);
+}
+
+.tr-unverified {
+  color: var(--line-2);
+}
+
+.tr-q {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  line-height: 1.85;
+  color: var(--ink);
+  margin: 0 0 7px;
+}
+
+.tr-a {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+  margin: 0;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+}
+
+.tr-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-right: 8px;
+}
+
+/* ── 尚未完成的部分（显式写出来，不假装完工） ── */
+.report-next {
+  margin-top: 22px;
+}
+
+.report-next ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px dashed var(--line-2);
+  background: var(--paper-2);
+  padding: 14px 17px;
+}
+
+.report-next li {
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: var(--muted);
+  padding-left: 13px;
+  position: relative;
+}
+
+.report-next li::before {
+  content: '·';
+  position: absolute;
+  left: 2px;
+  color: var(--line-2);
+}
+
+/* ── 加载 / 错误态 ── */
+.report-placeholder {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  padding: 22px 20px;
+  margin-top: 26px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.report-placeholder h2 {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 10px;
+  letter-spacing: 0;
+}
+
+.report-placeholder p {
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.8;
+  letter-spacing: 0;
+  margin: 0 0 8px;
+}
+
+.report-note {
+  color: var(--line-2);
+}
+
+/* ── 窄屏：400px 也要求两栏塌成单栏 ── */
+@media (max-width: 860px) {
+  .report-cols {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .report-title {
+    font-size: 22px;
+  }
+  .report-cover-inner {
+    padding: 24px 18px 20px;
+  }
+}
