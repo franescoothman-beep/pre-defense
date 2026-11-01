@@ -138,12 +138,15 @@ test('报告页：有审议轨迹（按顺序列出问与答）', () => {
   assert.match(reportSrc, /trajectory\.map/);
 });
 
-test('报告页：显式写出"本页尚未完成的部分"（不假装已完工）', () => {
-  // 【为什么这条要测】阶段的诚实是这个作品拿分的部分。
-  // 在阶段 4 就把报告页做成"看起来完整"、实际缺少看板与复练，是对用户说谎。
-  assert.match(reportSrc, /本页尚未完成的部分/);
-  assert.match(reportSrc, /质询风险看板/);
+test('报告页：阶段 5 完工后不再挂"本页尚未完成的部分"（不能让页面说谎）', () => {
+  // 【为什么这条要测】阶段 4 那一版报告页底部有一节「本页尚未完成的部分」，
+  // 明说看板/两栏定稿/两条复练路径留到阶段 5。阶段 5 做完了就必须删掉——
+  // 留着比不做更糟：用户会以为这一页还在半成品状态，而它其实已经能用了。
+  assert.doesNotMatch(reportSrc, /本页尚未完成的部分/, '阶段 5 已完工，这一节必须删除');
+  assert.match(reportSrc, /质询风险看板/, '看板必须在页面上');
   assert.match(reportSrc, /复练|练回答|改材料/);
+  assert.match(reportSrc, /report-actions/, '两条复练路径的入口区块要在');
+  assert.match(reportSrc, /board-cell/, '看板格子要可点');
 });
 
 test('报告页：MOCK/降级模式可见（不标 = 用户以为这是真模型给的）', () => {

@@ -111,7 +111,20 @@ test('mode 矩阵：quick 必须允许追问（followupsEach≥1），否则默�
   assert.ok(MODE_MATRIX.quick.maxTurns <= 6, 'quick 档上限 6 轮（3–6 轮出报告）');
   assert.equal(MODE_MATRIX.full.maxTurns, 15, 'full 档 ≤15 轮');
   assert.equal(MODE_MATRIX.full.followupsEach, 2, 'full 档每位最多 2 次追问');
-  assert.equal(MODE_MATRIX.drill.maxTurns, 5);
+});
+
+test('mode 矩阵：轮次上限必须 ≥ 主问配额（否则会在宣告的配额用完前结束）', () => {
+  // 【为什么这条是真 Bug 而不只是数字不一致】drill 原来是 judges=3 × mainsEach=2 = 6 个主问，
+  // 但 maxTurns=5 —— 会话在奏完第 5 轮就被规则 7 掐掉，而进度条上写着「3 / 6 主问」。
+  // 用户看到的是「系统提前放弃了」，而系统的本意是「再问一个就轮到你」。
+  // 这里不写死某个数字，而是守一条任何模式都不许破的不变量。
+  for (const [mode, cfg] of Object.entries(MODE_MATRIX)) {
+    const quota = cfg.judges * cfg.mainsEach;
+    assert.ok(
+      cfg.maxTurns >= quota,
+      `${mode}：maxTurns=${cfg.maxTurns} 小于主问配额 ${quota}，会在配额用完前被轮次上限掐断`,
+    );
+  }
 });
 
 test('mode 矩阵：quick 档 3 位 × 1 主问 = 3 个主问', () => {

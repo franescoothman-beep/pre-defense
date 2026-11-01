@@ -69,7 +69,7 @@ export const MODE_MATRIX: Record<SessionMode, { judges: number; mainsEach: numbe
   quick: { judges: 3, mainsEach: 1, followupsEach: 1, maxTurns: 6, label: '快速评审（3 位各 1 问）' },
   full: { judges: 3, mainsEach: 3, followupsEach: 2, maxTurns: 15, label: '完整体检（3 位各 3 问）' },
   single: { judges: 1, mainsEach: 3, followupsEach: 2, maxTurns: 6, label: '单考官（降级）' },
-  drill: { judges: 3, mainsEach: 2, followupsEach: 1, maxTurns: 5, label: '同一材料练回答' },
+  drill: { judges: 3, mainsEach: 2, followupsEach: 1, maxTurns: 8, label: '同一材料练回答' },
   revise: { judges: 3, mainsEach: 1, followupsEach: 0, maxTurns: 6, label: '改后材料重新送审' },
 };
 
