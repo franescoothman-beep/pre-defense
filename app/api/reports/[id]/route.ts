@@ -74,9 +74,22 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   // 看板回答的是"这份材料在哪一格上最危险"，它是**材料**的属性，不是这一场的产物；
   // 而"这一格本场问到了几条"是这场的事实。前者重算不变（与左栏同一套权重），
   // 后者跟着 turns 走——两者都是只读推导，没有写库的必要，也就不存在"两份看板打架"。
+  //
+  // 【attribution：按 turn.personaId 归因】
+  // 指令包原文要求看板给出"该评委提出的 claim 数"。
+  // claim 的归属（type/dimension）是材料的属性，**谁问的**记在 turn 上——
+  // 两者是不同的东西：depth 席位的评委可能追问一条 evidence 维的 claim，
+  // 按 claim 归属计数会把归因整列丢掉（问出来的永远是席位数本身）。
   const askedClaimIds = new Set(
     turns.filter((t) => t.question !== '' && t.targetClaimId).map((t) => t.targetClaimId as string),
   );
+  const attribution = {
+    byClaim: new Map(
+      turns
+        .filter((t) => t.question !== '' && t.targetClaimId)
+        .map((t) => [t.targetClaimId as string, t.personaId]),
+    ),
+  };
   const board = boardOf(
     claims.map((c) => ({
       id: c.id,
@@ -90,6 +103,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     })),
     personas.map((p) => ({ id: p.id, name: p.name, role: p.role })),
     askedClaimIds,
+    attribution,
   );
 
   const docName = String(q.get(`select name from documents where id = ?`, session.docId)?.name ?? '材料');

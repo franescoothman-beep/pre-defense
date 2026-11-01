@@ -153,9 +153,16 @@ test('报告页：MOCK/降级模式可见（不标 = 用户以为这是真模型
   assert.match(reportSrc, /degraded|服务端聚合与模板生成/);
 });
 
-test('报告页：不新增动效（#4 引用命中脉冲留给阶段 5）', () => {
-  assert.doesNotMatch(reportCss, /@keyframes/, '这一拍不新增动效');
-  assert.doesNotMatch(reportCss, /animation:\s/, '不许有动画声明');
+test('报告页：全站动效账封顶 4 处（#4 引用命中脉冲在阶段 5 兑现）', () => {
+  // 【口径变更说明，2026-11-01】阶段 4 这一拍"不新增动效"是当时硬规格；
+  // 阶段 5 把欠的 #4 引用命中脉冲 320ms 补上了（全站第 4 处，也是最后一处）。
+  // 现在要守的不是"零动效"，而是**不许超账**：报告页只许有这一条 keyframes。
+  const keyframes = reportCss.match(/@keyframes\s+[\w-]+/g) ?? [];
+  assert.deepEqual(keyframes, ['@keyframes quote-pulse'], `报告页只许有引用脉冲这一条 keyframes，实际：${keyframes.join(', ')}`);
+  const anims = (reportCss.match(/animation:\s*[\w-]+/g) ?? []).filter((a) => !/none$/.test(a));
+  for (const a of anims) {
+    assert.match(a, /quote-pulse/, `报告页出现清单外的动效：${a}`);
+  }
 });
 
 test('报告页：窄屏塌成单栏（400px 可用）', () => {

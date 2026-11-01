@@ -127,6 +127,28 @@ test('mode 矩阵：轮次上限必须 ≥ 主问配额（否则会在宣告的�
   }
 });
 
+test('mode 矩阵：轮次预算必须容得下「配额 + 追问」的最坏情况（full 除外）', () => {
+  // 【为什么主问配额那条还不够】maxTurns ≥ 配额只保证"问得完"，
+  // 不保证"每条主问都轮得到它的追问"。规则 7 在 totalTurns 撞上限时收口，
+  // 而追问也是 turn —— 追问吃掉的轮数会把还没问的主问挤出去。
+  //
+  // 最坏情况：倒数第二条主问带满 followupsEach 次追问，最后一条主问收口
+  //   worst = 配额 + (配额 − 1) × followupsEach
+  // quick 按公式 = 5，矩阵留 6（3–6 轮出报告的口径）✅；
+  // drill 按公式 = 11，maxTurns 曾是 8 —— 实测探针里 drill 在 4/6 主问就被掐断，
+  // 用户以为练完了，其实一半主问没轮到。现改 12。
+  for (const [mode, cfg] of Object.entries(MODE_MATRIX)) {
+    if (mode === 'full') continue; // 官方口径「full 才 ≤15 轮」是写死的硬顶，追问预算被挤掉是文档行为
+    const quota = cfg.judges * cfg.mainsEach;
+    const worst = quota + (quota - 1) * cfg.followupsEach;
+    assert.ok(
+      cfg.maxTurns >= worst,
+      `${mode}：maxTurns=${cfg.maxTurns} 容不下最坏的 ${worst} 轮（${quota} 主问 + 每问至多 ${cfg.followupsEach} 追问），追问会挤掉还没问的主问`,
+    );
+  }
+  assert.equal(MODE_MATRIX.drill.maxTurns, 12, 'drill 要容得下 6 主问 + 5 追问');
+});
+
 test('mode 矩阵：quick 档 3 位 × 1 主问 = 3 个主问', () => {
   assert.equal(mainsNeededOf({ mode: 'quick', judges: 3 }), 3);
   assert.equal(mainsNeededOf({ mode: 'full', judges: 3 }), 9);

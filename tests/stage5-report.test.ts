@@ -376,6 +376,46 @@ test('看板：asked 只数本场真的问到的那几条', () => {
   assert.equal(cell.asked, 1);
 });
 
+test('看板：askedByJudge 按 turn.personaId 归因（指令包的"该评委提出的 claim 数"）', () => {
+  // 【为什么不能按 claim 归属计数】depth 席位的评委完全可能追问一条 evidence 维的 claim
+  // ——追问咬住的是质疑点，不是维度。按 claim 归属计数，"本人追问数"永远等于席位数，
+  // 归因整列名存实亡。所以必须看谁问的（turn.personaId）。
+  const a = claim({ id: 'a', type: 'method', dimension: 'logic' });
+  const b = claim({ id: 'b', type: 'method', dimension: 'logic' });
+  const rows = boardOf(
+    [a, b],
+    [{ id: 'p1', name: '林晖', role: 'method' }],
+    new Set(['a', 'b']),
+    { byClaim: new Map([['a', 'p1'], ['b', 'other-judge']]) }, // a 是林晖问的，b 是别人问的
+  );
+  const cell = rows[0].cells.find((c) => c.dimension === 'logic')!;
+  assert.equal(cell.asked, 2, '全场口径：两个人问的都算');
+  assert.equal(cell.askedByJudge, 1, '本人口径：只有 a 是林晖问的');
+});
+
+test('看板：无席位行的 askedByJudge 恒为 0（不编造归因）', () => {
+  const c1 = claim({ id: 'c1', type: 'engineering', dimension: 'logic' });
+  const rows = boardOf(
+    [c1],
+    [],
+    new Set(['c1']),
+    { byClaim: new Map([['c1', 'p9']]) },
+  );
+  // rows[0] 是 method 行；这条 claim 是 engineering，必须按类型找行——
+  // 顺带验证行序与 claim 无关
+  const cell = rows.find((r) => r.type === 'engineering')!.cells.find((x) => x.dimension === 'logic')!;
+  assert.equal(cell.asked, 1);
+  assert.equal(cell.askedByJudge, 0, '没有占席评委就没有"本人"，归因不能落到空位上');
+});
+
+test('看板：不传 attribution 也能用（旧调用点兼容），askedByJudge 恒 0', () => {
+  const c1 = claim({ id: 'c1', type: 'method', dimension: 'logic' });
+  const rows = boardOf([c1], [{ id: 'p1', name: 'A', role: 'method' }], new Set(['c1']));
+  const cell = rows[0].cells.find((x) => x.dimension === 'logic')!;
+  assert.equal(cell.asked, 1);
+  assert.equal(cell.askedByJudge, 0, '没有归因表就没有"本人"，绝不猜');
+});
+
 // ─────────────────────────── 服务端接线 ───────────────────────────
 
 test('出报告时算完 delta 就落库（读接口现算会因重抽 claims 而改数字）', () => {
@@ -389,6 +429,14 @@ test('报告接口把看板与两种总分一起带出来', () => {
   assert.match(reportApiSrc, /overallRisk/, '材料风险总分');
   assert.match(reportApiSrc, /overallPerf/, '临场表现总分');
   assert.match(reportApiSrc, /mock:/, 'MOCK 事实要带给客户端页');
+});
+
+test('报告接口把"谁问了哪条"的归因表传给看板（按 turn.personaId）', () => {
+  // 指令包原文：看板要有"该评委提出的 claim 数"。
+  // 不传归因表的话 askedByJudge 恒为 0，那一列就是死的。
+  assert.match(reportApiSrc, /byClaim: new Map\(/, '必须构造 claim → persona 归因');
+  assert.match(reportApiSrc, /t\.personaId/, '归因键必须来自 turn 的提问者');
+  assert.match(reportApiSrc, /askedClaimIds,\s*\n\s*attribution/, '归因表要作为第四参传进 boardOf');
 });
 
 // ─────────────────────────── 页面契约 ───────────────────────────
@@ -426,6 +474,22 @@ test('报告页：两条复练路径都真的接了接口', () => {
 test('报告页：MOCK 角标（回放数据必须当场说明）', () => {
   assert.match(reportSrc, /report-foot/);
   assert.match(reportSrc, /MOCK 演示模式/);
+});
+
+test('报告页：看板区分"本人问过"与"他席问过"（归因列要可见）', () => {
+  assert.match(reportSrc, /askedByJudge > 0/, '本人追问数要有渲染分支');
+  assert.match(reportSrc, /cell-asked\b/, '本人问过的朱红小标');
+  assert.match(reportSrc, /cell-asked-others/, '他席问过的灰标');
+});
+
+test('报告页：引用命中脉冲 320ms（动效账 #4，全站最后一处）', () => {
+  // 视觉稿里被引用那一句在点开时闪一下朱红。规格是"仅 1 次"。
+  assert.match(reportSrc, /quote-cite/, '被引的句子要有独立的类挂动效');
+  assert.match(reportSrc, /is-hit/, '只在逐字命中时跑');
+  assert.match(reportCss, /quote-pulse 320ms/, '320ms 是 §3.2 写死的规格');
+  assert.match(reportCss, /animation: quote-pulse 320ms ease-out 1 forwards/, '"仅 1 次"= iteration-count 1');
+  // prefers-reduced-motion 下必须整体关闭：可访问性优先于动效
+  assert.match(reportCss, /@media \(prefers-reduced-motion: reduce\)/);
 });
 
 test('报告页：空态与错误态各有明确出口', () => {

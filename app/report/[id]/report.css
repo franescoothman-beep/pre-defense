@@ -369,6 +369,39 @@
   margin: 10px 0 0;
 }
 
+/*
+ * 动效账 #4「引用命中脉冲 320ms」（全站最后一处动效，至此 4/4）。
+ *
+ * 【规格】§3.2 写的是"仅 1 次"。animation-iteration-count: 1 + forwards：
+ * 动画跑完停在 100% 的关键帧（背景已回到纸色），不做呼吸、不循环。
+ * 点开另一格引用时 React 的 key 变化会让元素重建，脉冲重跑一遍——
+ * 每次打开都该有"找到了"的反馈，但每一次只闪一下。
+ *
+ * 【为什么只给 is-hit】脉冲庆祝的是"逐字机检命中了原文"这一拍。
+ * verified===0 的引用打开时不闪：它没有"找到"可庆祝，
+ * 给它同样的动效等于把"未命中"也画成"找到了"——颜色只编码数据。
+ * prefers-reduced-motion 下整体关闭，可访问性优先。
+ */
+.quote-cite {
+  display: inline;
+}
+
+.quote-cite.is-hit {
+  animation: quote-pulse 320ms ease-out 1 forwards;
+}
+
+@keyframes quote-pulse {
+  0%   { background: var(--red-soft); }
+  40%  { background: var(--red-line); }
+  100% { background: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quote-cite.is-hit {
+    animation: none;
+  }
+}
+
 /* ── 高风险清单 ── */
 .report-high {
   margin-top: 6px;
@@ -829,6 +862,21 @@
   font-size: 11px;
   color: var(--muted);
   letter-spacing: 0.03em;
+}
+
+/* 「本人问过 N」：占席评委本人追问的条数（按 turn.personaId 归因）。
+   朱红小标，与格内风险色同一语义（被追问 = 危险被验证过）。 */
+.cell-asked {
+  color: var(--red);
+  font-weight: 600;
+  margin-left: 5px;
+}
+
+/* 「他席问过」：这一格被问到，但不是占席评委本人——
+   常见于追问咬住别的维度的 claim。灰显，不与朱红混淆。 */
+.cell-asked-others {
+  margin-left: 5px;
+  color: var(--line-2);
 }
 
 /* 材料里没有这一格：显示「—」，不做成可点（点了只会到一个空列表） */

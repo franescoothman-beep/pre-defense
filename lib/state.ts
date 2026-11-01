@@ -64,12 +64,26 @@ export const HARD_LIMITS = {
   maxConcurrentCalls: 2,
 } as const;
 
-/** mode 矩阵：轮次与每位评委的主问数（C11/C17） */
+/**
+ * mode 矩阵：轮次与每位评委的主问数（C11/C17）。
+ *
+ * 【maxTurns 的预算公式（full 除外，见下）】
+ *   worst = 主问配额 + (主问配额 − 1) × followupsEach
+ * 「主问配额用尽即收口」在**最后一条主问答完的那一拍**就触发，
+ * 所以最后一条主问永远分不到追问；其余每条主问最多吃 followupsEach 轮。
+ * maxTurns 小于这个 worst case，会话就会在"宣称的主问数"问完之前被规则 7 掐断
+ * —— drill 曾是 5 < 6，用户看到的是「3/6 主问 · 已结束」，像系统提前放弃。
+ *
+ * full 是唯一例外：官方口径「full 才 ≤15 轮」是写死的硬顶，
+ * 追问预算被挤掉（提前收口）是文档行为，不是 Bug。
+ */
 export const MODE_MATRIX: Record<SessionMode, { judges: number; mainsEach: number; followupsEach: number; maxTurns: number; label: string }> = {
   quick: { judges: 3, mainsEach: 1, followupsEach: 1, maxTurns: 6, label: '快速评审（3 位各 1 问）' },
   full: { judges: 3, mainsEach: 3, followupsEach: 2, maxTurns: 15, label: '完整体检（3 位各 3 问）' },
-  single: { judges: 1, mainsEach: 3, followupsEach: 2, maxTurns: 6, label: '单考官（降级）' },
-  drill: { judges: 3, mainsEach: 2, followupsEach: 1, maxTurns: 8, label: '同一材料练回答' },
+  // 3 主问 + 至多 4 追问 = 7，留 8 留一格余量
+  single: { judges: 1, mainsEach: 3, followupsEach: 2, maxTurns: 8, label: '单考官（降级）' },
+  // 6 主问 + 至多 5 追问 = 11，留 12
+  drill: { judges: 3, mainsEach: 2, followupsEach: 1, maxTurns: 12, label: '同一材料练回答' },
   revise: { judges: 3, mainsEach: 1, followupsEach: 0, maxTurns: 6, label: '改后材料重新送审' },
 };
 

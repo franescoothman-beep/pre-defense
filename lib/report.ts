@@ -371,8 +371,10 @@ export type BoardCell = {
   count: number;
   risk_score: number | null;
   absence: number;
-  /** 本场真的问到了其中几条；0 表示这一格本场没被质询过 */
+  /** 本场真的问到了其中几条（任何人问的都算）；0 表示这一格本场没被质询过 */
   asked: number;
+  /** 占席评委**本人**追问到的条数（按 turn.personaId 归因；无席位时恒为 0） */
+  askedByJudge: number;
 };
 
 export const CLAIM_TYPE_ORDER = ['method', 'engineering', 'value'] as const;
@@ -384,6 +386,20 @@ export const CLAIM_TYPE_LABEL: Record<string, string> = {
 };
 
 export type BoardClaim = ClaimRow & { type: string; text: string; quote: string };
+
+/**
+ * 谁问了哪条 claim 的归因表。
+ *
+ * 【为什么归因到 turn 而不是"claim 的 dimension"】
+ * 2026-11-01 阶段 4 修过一次同类错位：报告的 askedDims 若按 claim 维度收集，
+ * depth 席位的评委可能问出 evidence 维的 claim（席位维度 ≠ claim 维度是常态），
+ * 报告就会出现"risk_score=58 旁边写本场未覆盖"的自相矛盾。
+ * 看板的「该评委提出的 claim 数」同理：**谁问的**要看 turn.personaId，不是 claim 归属。
+ */
+export type AskedAttribution = {
+  /** 这场真被问到（question 非空）的 claim id → 提问评委的 persona id */
+  byClaim: Map<string, string>;
+};
 
 /**
  * 质询风险看板。
@@ -403,6 +419,8 @@ export function boardOf(
   claims: BoardClaim[],
   personas: Array<{ id: string; name: string; role: string }>,
   askedClaimIds: Set<string>,
+  /** 谁问了哪条 claim。缺省时退化成"不区分谁问的"（旧调用点兼容），归因列为空 */
+  attribution?: AskedAttribution,
 ): BoardRow[] {
   return CLAIM_TYPE_ORDER.map((type) => {
     const rowsOfType = claims.filter((c) => c.type === type);
@@ -410,13 +428,23 @@ export function boardOf(
     const cells: BoardCell[] = DIMENSIONS.map((dimension) => {
       const sub = rowsOfType.filter((c) => c.dimension === dimension);
       const cell = aggregateMaterialRisk(sub).find((x) => x.dimension === dimension)!;
+      // 【按评委归因，而不是"这条 claim 属于谁"】
+      // 指令包原文：「该评委提出的 claim 数」。一条 claim 被哪位评委追问过，
+      // 记在 turn.personaId 上——depth 席位的评委完全可能追问一条 evidence 维的 claim
+      // （追问咬住的是质疑点，不是维度）。按 claim 归属计数会让"追问数"永远等于"席位数"，
+      // 看起来正常，其实是把归因整列丢掉了。
+      const askedBySeatJudge = judge
+        ? sub.filter((c) => attribution?.byClaim.get(c.id) === judge.id).length
+        : 0;
       return {
         dimension,
         label: DIMENSION_LABEL[dimension],
         count: sub.length,
         risk_score: cell.risk_score,
         absence: cell.absence,
+        // 本场问到 = 全场口径（任何人问过都算）；attribution 里的 asked = 这位评委本人问的
         asked: sub.filter((c) => askedClaimIds.has(c.id)).length,
+        askedByJudge: askedBySeatJudge,
       };
     });
     return {

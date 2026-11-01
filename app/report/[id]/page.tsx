@@ -109,6 +109,7 @@ type BoardRow = {
     risk_score: number | null;
     absence: number;
     asked: number;
+    askedByJudge: number;
   }>;
 };
 
@@ -430,7 +431,13 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                                 : '#'
                             }
                             title={`${row.label} · ${DIM_CN[cell.dimension]}：${cell.count} 条质疑点，聚合风险 ${cell.risk_score ?? '—'}${
-                              cell.asked > 0 ? `，本场问过 ${cell.asked} 条` : '，本场未问到'
+                              cell.asked > 0
+                                ? `，本场问过 ${cell.asked} 条${
+                                    cell.askedByJudge > 0
+                                      ? `（${row.judgeName ?? '评委'} 本人追问 ${cell.askedByJudge} 条）`
+                                      : '（均由其他评委问到）'
+                                  }`
+                                : '，本场未问到'
                             }`}
                           >
                             <span className={`cellv${riskLevelCss(cell.risk_score ?? 0)}`}>
@@ -443,7 +450,14 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                               />
                             </span>
                             <span className="cellmeta">
-                              {cell.count} 条{cell.asked > 0 ? ` · 问过 ${cell.asked}` : ''}
+                              {cell.count} 条
+                              {/* 「本人问过」= 指令包要求的"该评委提出的 claim 数"；
+                                  与「全场问过」分开——depth 席位的评委可能追问 evidence 维的 claim */}
+                              {cell.askedByJudge > 0 ? (
+                                <b className="cell-asked">{cell.askedByJudge} 问</b>
+                              ) : cell.asked > 0 ? (
+                                <span className="cell-asked-others">他席问过</span>
+                              ) : null}
                               {cell.absence > 0 ? ` · 缺 ${cell.absence}` : ''}
                             </span>
                           </a>
@@ -593,7 +607,17 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                 原文里没有可引用的句子——所以要改材料，而不是改这一句。
               </p>
             ) : (
-              <p className="opened-body">「{opened.quote}」</p>
+              // 动效账 #4「引用命中脉冲 320ms」：
+              // 打开引用的那一拍，被引的那句做一次 320ms 的朱红脉冲——
+              // 只在 verified === 1 时跑（没命中的句子没有"找到原文"这一拍可庆祝），
+              // key 用 blockIdx 驱动，点另一格会重新跑一遍。
+              <p className="opened-body" key={`${opened.blockIdx}-${opened.kind}`}>
+                <span
+                  className={`quote-cite${opened.verified === 1 ? ' is-hit' : ''}`}
+                >
+                  「{opened.quote}」
+                </span>
+              </p>
             )}
           </section>
         ) : null}
