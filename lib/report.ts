@@ -61,6 +61,39 @@ export function aggregateMaterialRisk(claims: ClaimRow[]): RiskCell[] {
 
 export type PerformanceCell = { dimension: Dimension; score: number; comment?: string };
 
+/**
+ * 全场材料风险：把报告里四个格子按各自质疑点条数加权成一个 0–100 的数。
+ *
+ * 【为什么从格子算，而不是重新读 claims】
+ * 报告是证据。claims 表可以被「重新抽取」按钮整批换掉，那时再拿新 claims 去算，
+ * 一份历史报告的大数字会跟着变——同一份报告两次打开给出两个结论，就不可信了。
+ * 从**已落库的格子**加权，好处是读者能拿页面上的四个数字当场验算：
+ *   overall = round(Σ(score_i × claims_i) / Σclaims_i)，只统计有质疑点的维度。
+ *
+ * 四维格子本身是 claims 的纯函数（aggregateMaterialRisk），所以
+ * 「risk_score 可由 claims 复算」仍然成立，且有单测钉住。
+ *
+ * 【没有质疑点 → null，不是 0】0 分意味"满分级安全"，那是造假。
+ */
+export function overallOfCells(cells: RiskCell[]): number | null {
+  let num = 0;
+  let den = 0;
+  for (const c of cells) {
+    if (c.risk_score === null || c.claims <= 0) continue;
+    num += c.risk_score * c.claims;
+    den += c.claims;
+  }
+  return den > 0 ? Math.round(num / den) : null;
+}
+
+/** 全场临场表现：本场真实问到的维度取平均；一个维度都没问到 → null */
+export function overallScoreOf(rows: Array<{ score: number | null }>): number | null {
+  const hit = rows.filter((r): r is { score: number } => typeof r.score === 'number');
+  if (hit.length === 0) return null;
+  return Math.round(hit.reduce((s, r) => s + r.score, 0) / hit.length);
+}
+
+
 /** 临场表现：模型给分，这里只做口径统一（缺维 → null，不补均值） */
 export function normalizePerformance(rows: Array<{ dimension: string; score: number; comment?: string }>): Array<{ dimension: Dimension; score: number | null; comment: string }> {
   return DIMENSIONS.map((d) => {
@@ -69,9 +102,15 @@ export function normalizePerformance(rows: Array<{ dimension: string; score: num
   });
 }
 
+export type DeltaKind = 'drill' | 'revise';
+
 export type Delta = {
+  /** 这条对比是哪种复练产生的 —— 决定 UI 说「风险降了」还是「表现升了」 */
+  kind: DeltaKind;
   risk: Array<{ dimension: Dimension; prev: number; now: number; dir: -1 | 0 | 1; source: 'doc_diff' }>;
   perf: Array<{ dimension: Dimension; prev: number; now: number; dir: -1 | 0 | 1; source: 'answer_diff' }>;
+  /** 只有 revise 才有：两次材料之间质疑点的增删（换了材料才谈得上"改好了没有"） */
+  claims?: ClaimDiff;
 };
 
 /**
@@ -87,7 +126,7 @@ export function computeDelta(
   prevPerf: Array<{ dimension: Dimension; score: number | null }> | null,
   nowPerf: Array<{ dimension: Dimension; score: number | null }> | null,
 ): Delta {
-  const out: Delta = { risk: [], perf: [] };
+  const out: Delta = { kind, risk: [], perf: [] };
 
   if (kind === 'revise' && prevRisk && nowRisk) {
     for (const d of DIMENSIONS) {
@@ -112,6 +151,283 @@ export function computeDelta(
   }
 
   return out;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 阶段 5 · 二练对比的两个原料（落库 JSON → 可比较的结构）
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 把落库的 material_risk JSON 反序列化成 RiskCell[]。
+ *
+ * 【为什么接受 string】落库的是 TEXT 列；而调用方有时拿到的是已 JSON.parse 的值。
+ * 两种都收，坏数据返回 null —— 二练对比不能因为一份旧报告格式不对就整页 500。
+ */
+function asArray(raw: unknown): unknown[] | null {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try {
+      const v: unknown = JSON.parse(raw);
+      return Array.isArray(v) ? v : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+export function parseRiskCells(raw: unknown): RiskCell[] | null {
+  const arr = asArray(raw);
+  if (!arr) return null;
+  const out: RiskCell[] = [];
+  for (const item of arr) {
+    if (!item || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    const dimension = String(o.dimension ?? '') as Dimension;
+    if (!DIMENSIONS.includes(dimension)) continue;
+    const score = o.risk_score;
+    out.push({
+      dimension,
+      risk_score: typeof score === 'number' && Number.isFinite(score) ? score : null,
+      claims: typeof o.claims === 'number' ? o.claims : 0,
+      absence: typeof o.absence === 'number' ? o.absence : 0,
+    });
+  }
+  return out.length > 0 ? out : null;
+}
+
+export function parsePerformanceRows(raw: unknown): Array<{ dimension: Dimension; score: number | null }> | null {
+  const arr = asArray(raw);
+  if (!arr) return null;
+  const out: Array<{ dimension: Dimension; score: number | null }> = [];
+  for (const item of arr) {
+    if (!item || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    const dimension = String(o.dimension ?? '') as Dimension;
+    if (!DIMENSIONS.includes(dimension)) continue;
+    const score = o.score;
+    out.push({
+      dimension,
+      score: typeof score === 'number' && Number.isFinite(score) ? score : null,
+    });
+  }
+  return out.length > 0 ? out : null;
+}
+
+/** 质疑点的最小可比形状（跨材料比对时只需要这几个字段） */
+export type ClaimBrief = {
+  id: string;
+  type: string;
+  dimension: string;
+  risk: number;
+  text: string;
+  quote: string;
+  locator_kind: string;
+};
+
+export type ClaimDiff = {
+  prevTotal: number;
+  nowTotal: number;
+  /** 两次材料里都还在的质疑点条数 */
+  kept: number;
+  added: Array<{ text: string; dimension: string; risk: number }>;
+  removed: Array<{ text: string; dimension: string; risk: number }>;
+  /** 同一条质疑点风险上调（改材料没改对方向） */
+  riskUp: Array<{ text: string; prevRisk: number; nowRisk: number }>;
+  /** 同一条质疑点风险下调（改对了） */
+  riskDown: Array<{ text: string; prevRisk: number; nowRisk: number }>;
+  /** 上次是「该写没写」、这次补上了原文 —— 改材料最直接的成效 */
+  absenceFilled: number;
+  /** 上次能引原文、这次反而引不出来了 */
+  absenceIntroduced: number;
+};
+
+/** 归一化：去掉空白与标点，只留文字主体（两次抽取的标点常不一样） */
+function claimKey(s: string): string {
+  return s.replace(/[\s\p{P}\p{S}]/gu, '');
+}
+
+/**
+ * 两次材料的质疑点增删。
+ *
+ * 【为什么按"文本归一化"而不是 claim id】revise 换的是**另一份材料**，
+ * 重新抽取后 claim id 全变，按 id 比会得到"100% 全删 100% 全加"的假结论。
+ * 所以先用归一化文本对齐，再用引文兜底对齐（重写材料时正文可能微调，但引的那句话常常原样保留）。
+ * 对齐不上的才是真正的"新增 / 消失"。
+ */
+export function claimDiffOf(
+  prev: ClaimBrief[],
+  now: ClaimBrief[],
+  maxItems = 5,
+): ClaimDiff {
+  const byText = new Map<string, ClaimBrief>();
+  for (const c of prev) {
+    const k = claimKey(c.text);
+    if (k && !byText.has(k)) byText.set(k, c);
+  }
+  const byQuote = new Map<string, ClaimBrief>();
+  for (const c of prev) {
+    const k = claimKey(c.quote);
+    if (k.length >= 8 && !byQuote.has(k)) byQuote.set(k, c);
+  }
+
+  const usedPrev = new Set<string>();
+  const matched: Array<{ prev: ClaimBrief; now: ClaimBrief }> = [];
+  const added: ClaimBrief[] = [];
+
+  for (const c of now) {
+    const byT = byText.get(claimKey(c.text));
+    const hit = byT && !usedPrev.has(byT.id) ? byT : null;
+    const byQ = hit ? null : byQuote.get(claimKey(c.quote));
+    const realHit = byQ && !usedPrev.has(byQ.id) ? byQ : hit;
+    if (realHit) {
+      usedPrev.add(realHit.id);
+      matched.push({ prev: realHit, now: c });
+    } else {
+      added.push(c);
+    }
+  }
+
+  const removed = prev.filter((c) => !usedPrev.has(c.id));
+
+  const riskUp: ClaimDiff['riskUp'] = [];
+  const riskDown: ClaimDiff['riskDown'] = [];
+  let absenceFilled = 0;
+  let absenceIntroduced = 0;
+  for (const { prev: p, now: n } of matched) {
+    if (n.risk > p.risk) riskUp.push({ text: n.text, prevRisk: p.risk, nowRisk: n.risk });
+    if (n.risk < p.risk) riskDown.push({ text: n.text, prevRisk: p.risk, nowRisk: n.risk });
+    if (p.locator_kind === 'absence' && n.locator_kind === 'quote') absenceFilled += 1;
+    if (p.locator_kind === 'quote' && n.locator_kind === 'absence') absenceIntroduced += 1;
+  }
+
+  const brief = (c: ClaimBrief) => ({ text: c.text, dimension: c.dimension, risk: c.risk });
+  const sortedByRisk = (list: ClaimBrief[]) => [...list].sort((a, b) => b.risk - a.risk);
+
+  return {
+    prevTotal: prev.length,
+    nowTotal: now.length,
+    kept: matched.length,
+    added: sortedByRisk(added).slice(0, maxItems).map(brief),
+    removed: sortedByRisk(removed).slice(0, maxItems).map(brief),
+    riskUp: riskUp.slice(0, maxItems),
+    riskDown: riskDown.slice(0, maxItems),
+    absenceFilled,
+    absenceIntroduced,
+  };
+}
+
+/**
+ * 二练对比的总入口：把上一份报告 + 这一场的聚合结果拼成 Delta。
+ *
+ * 返回 null 的三种情况都是"如实说没有"，而不是造一个 0 出来：
+ *   · 本场不是复练（没有 drill_from）—— 没有上一场可比；
+ *   · 上一场报告不存在或格式坏掉；
+ *   · 两边可比的维度一个都不相交（computeDelta 会返回空数组，UI 显示"无可比较项"）。
+ *
+ * 【C17 铁律再看一遍】drill 只比 performance、revise 只比 risk。
+ * 混着比会让 drill 用户看到一个恒等于 0 的风险分差 —— 那是"−0"，等于骗人。
+ */
+export function deltaFor(input: {
+  kind: DeltaKind;
+  prevReport: Record<string, unknown> | null;
+  nowRisk: RiskCell[];
+  nowPerf: Array<{ dimension: Dimension; score: number | null }>;
+  prevClaims?: ClaimBrief[];
+  nowClaims?: ClaimBrief[];
+}): Delta | null {
+  if (!input.prevReport) return null;
+  const prevRisk = parseRiskCells(input.prevReport.material_risk);
+  const prevPerf = parsePerformanceRows(input.prevReport.performance);
+  if (!prevRisk && !prevPerf) return null;
+
+  const delta = computeDelta(input.kind, prevRisk, input.nowRisk, prevPerf, input.nowPerf);
+  if (input.kind === 'revise' && input.prevClaims && input.nowClaims) {
+    delta.claims = claimDiffOf(input.prevClaims, input.nowClaims);
+  }
+  return delta;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 阶段 5 · 质询风险看板（3 评委 × 4 维）
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 看板行：三类质疑各一行（行头标出占这一席的评委） */
+export type BoardRow = {
+  type: string;
+  label: string;
+  /** 占这个角色的评委；材料缺这类质疑时没有席位，如实为 null */
+  judgeName: string | null;
+  judgeId: string | null;
+  /** 该角色的质疑点总数（= 这一行 4 格之和） */
+  total: number;
+  cells: BoardCell[];
+};
+
+export type BoardCell = {
+  dimension: Dimension;
+  label: string;
+  /** 该（类型, 维度）组合的质疑点条数；0 表示材料里真的没有，不是"没算" */
+  count: number;
+  risk_score: number | null;
+  absence: number;
+  /** 本场真的问到了其中几条；0 表示这一格本场没被质询过 */
+  asked: number;
+};
+
+export const CLAIM_TYPE_ORDER = ['method', 'engineering', 'value'] as const;
+
+export const CLAIM_TYPE_LABEL: Record<string, string> = {
+  method: '方法论',
+  engineering: '工程实现',
+  value: '价值与创新',
+};
+
+export type BoardClaim = ClaimRow & { type: string; text: string; quote: string };
+
+/**
+ * 质询风险看板。
+ *
+ * 【为什么行是「质疑类型」而不是「评委」】
+ * 席位是（维度, 类型）对（见 lib/prompts/personas.v1.ts 的 planSeats）。
+ * 若按评委分行，材料维度不足时 planSeats 允许**两位评委同为 method**，
+ * 于是两行的 4 个格子会完全一样 —— 一张重复的表格会被读成"数据出错了"。
+ * 按类型分行永远不重复，而且行头能标出是哪位评委占着这一席，
+ * 因此界面看上去仍然是"3 评委 × 4 维"。
+ *
+ * 【格子里的数字怎么算】
+ * 与左栏 material_risk 用的是**同一个** aggregateMaterialRisk（同一套权重），
+ * 所以看板上某一行的加权不会与左栏对不上：评委能拿 claims 复算。
+ */
+export function boardOf(
+  claims: BoardClaim[],
+  personas: Array<{ id: string; name: string; role: string }>,
+  askedClaimIds: Set<string>,
+): BoardRow[] {
+  return CLAIM_TYPE_ORDER.map((type) => {
+    const rowsOfType = claims.filter((c) => c.type === type);
+    const judge = personas.find((p) => p.role === type) ?? null;
+    const cells: BoardCell[] = DIMENSIONS.map((dimension) => {
+      const sub = rowsOfType.filter((c) => c.dimension === dimension);
+      const cell = aggregateMaterialRisk(sub).find((x) => x.dimension === dimension)!;
+      return {
+        dimension,
+        label: DIMENSION_LABEL[dimension],
+        count: sub.length,
+        risk_score: cell.risk_score,
+        absence: cell.absence,
+        asked: sub.filter((c) => askedClaimIds.has(c.id)).length,
+      };
+    });
+    return {
+      type,
+      label: CLAIM_TYPE_LABEL[type] ?? type,
+      judgeName: judge?.name ?? null,
+      judgeId: judge?.id ?? null,
+      total: rowsOfType.length,
+      cells,
+    };
+  });
 }
 
 /** 覆盖度：「本场 6 轮，覆盖 3/4 维 · 完整评审请切 full 档」 */

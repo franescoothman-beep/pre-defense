@@ -25,8 +25,10 @@ import {
   coverageOf,
   highRiskOf,
   reportPayloadOf,
+  deltaFor,
   DIMENSIONS,
   DIMENSION_LABEL,
+  type ClaimBrief,
   type ClaimRow,
   type Dimension,
 } from '@/lib/report';
@@ -271,6 +273,42 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
         suggestion: '',
       }));
 
+  // ---------- 二练对比（只有 drill / revise 才有"上一场"可比） ----------
+  //
+  // 【为什么必须在出报告时算完落库，而不是读接口现算】
+  // 报告是证据。读接口现算等于"每次打开都重新解释一遍"，而 claims 可能后来被重抽过
+  // （doc 页有「重新抽取」按钮），那时历史报告的对比数字会跟着变——
+  // 同一份报告两个时间打开给出不同结论，就不是可复现，而是不可信。
+  const prevReport = session.drillFrom
+    ? q.get(`select * from reports where session_id = ?`, session.drillFrom)
+    : null;
+  let delta = null as ReturnType<typeof deltaFor>;
+  if (prevReport && session.drillFrom) {
+    const prevSession = loadSession(session.drillFrom);
+    const prevClaims = prevSession ? loadClaimsOfDoc(prevSession.docId) : [];
+    const briefOf = (c: { id: string; type: string; dimension: string; risk: number; text: string; quote: string; locatorKind: string }): ClaimBrief => ({
+      id: c.id,
+      type: c.type,
+      dimension: c.dimension,
+      risk: c.risk,
+      text: c.text,
+      quote: c.quote,
+      locator_kind: c.locatorKind,
+    });
+    delta = deltaFor({
+      kind: session.mode === 'drill' ? 'drill' : 'revise',
+      prevReport,
+      nowRisk: riskCells,
+      nowPerf: performance.map((p) => ({ dimension: p.dimension, score: p.score })),
+      prevClaims: prevClaims.map(briefOf),
+      nowClaims: claims.map(briefOf),
+    });
+    if (!delta) {
+      // 上一场报告存在但解析不出来：如实放弃对比，而不是编一个全 0 的表格
+      console.warn('[POST /end] 上一场报告无法解析，二练对比跳过：', session.drillFrom);
+    }
+  }
+
   const coverage = coverageOf(
     riskCells,
     performance.map((p) => ({ dimension: p.dimension, score: p.score })),
@@ -312,7 +350,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       reportRow.high_risk,
       reportRow.advice,
       session.drillFrom,
-      null,
+      delta === null ? null : JSON.stringify(delta),
       now,
     );
     q.run(`update sessions set state = 'REPORTED', ended_at = ? where id = ?`, now, session.id);
