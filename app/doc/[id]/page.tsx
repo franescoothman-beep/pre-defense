@@ -11,6 +11,7 @@
 // 模型输出永远当纯文本对待。
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import './doc.css';
 
 type Claim = {
@@ -81,6 +82,7 @@ function Highlighted({ source, quote }: { source: string; quote: string }) {
 }
 
 export default function DocPage({ params }: { params: Promise<{ id: string }> }) {
+  const router = useRouter();
   const [docId, setDocId] = useState<string | null>(null);
   const [doc, setDoc] = useState<Doc | null>(null);
   const [claims, setClaims] = useState<Claim[]>([]);
@@ -89,6 +91,37 @@ export default function DocPage({ params }: { params: Promise<{ id: string }> })
   const [open, setOpen] = useState<Record<number, boolean>>({});
   const [rate, setRate] = useState<{ quote?: { total: number; hit: number; rate: number }; absence?: { total: number; ok: number; rate: number } }>({});
   const [coverage, setCoverage] = useState<Coverage | null>(null);
+
+  /**
+   * 看板格子跳过来时带的筛选条件，以及"用改后材料重审"带的上一场 id。
+   *
+   * 【为什么用 window.location.search 而不是 useSearchParams】
+   * useSearchParams 在 app router 里会让整个页面进入客户端动态渲染，
+   * Next 15 构建时会要求外面套一层 Suspense，否则 build 直接报错。
+   * 这两个参数只影响交互、不影响首屏内容，读完再 setState 完全够用。
+   */
+  const [filter, setFilter] = useState<{ dim: Claim['dimension'] | null; type: Claim['type'] | null }>({
+    dim: null,
+    type: null,
+  });
+  const [reviseFrom, setReviseFrom] = useState<string | null>(null);
+  const [starting, setStarting] = useState<string | null>(null);
+  const [startErr, setStartErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const dim = sp.get('dim');
+    const type = sp.get('type');
+    const revise = sp.get('revise');
+    const isDim = (v: string | null): v is Claim['dimension'] =>
+      v === 'logic' || v === 'evidence' || v === 'depth' || v === 'expression';
+    const isType = (v: string | null): v is Claim['type'] =>
+      v === 'method' || v === 'engineering' || v === 'value';
+    if (isDim(dim) || isType(type)) {
+      setFilter({ dim: isDim(dim) ? dim : null, type: isType(type) ? type : null });
+    }
+    if (revise) setReviseFrom(revise);
+  }, []);
 
   useEffect(() => {
     void params.then((p) => setDocId(p.id));
@@ -131,9 +164,58 @@ export default function DocPage({ params }: { params: Promise<{ id: string }> })
     }
   }, [docId]);
 
+  /**
+   * 开一场质询。
+   *
+   * 【为什么这个入口必须在阶段 5 补上】
+   * 阶段 4 结束时，全仓库只有 scripts 里的探针脚本能调 POST /api/sessions ——
+   * 也就是说 README 里写的「选材料 → 开始质询 → 出报告 → 复练」这条闭环，
+   * 在界面上是断的。评委点进来会卡在这一步，验收「quick 全流程 ≤8 分钟」根本无从谈起。
+   */
+  const startSession = useCallback(
+    async (mode: 'quick' | 'full' | 'revise') => {
+      if (!docId) return;
+      setStarting(mode);
+      setStartErr(null);
+      try {
+        const body: Record<string, string> = { docId, mode };
+        if (mode === 'revise' && reviseFrom) body.drillFrom = reviseFrom;
+        const r = await fetch('/api/sessions', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const j = await r.json();
+        if (!j.ok || !j.sessionId) {
+          setStartErr(j.message ?? `开不了场（${r.status}）`);
+          return;
+        }
+        router.push(`/session/${j.sessionId}`);
+      } catch {
+        setStartErr('网络中断，没能开场。请重试。');
+      } finally {
+        setStarting(null);
+      }
+    },
+    [docId, reviseFrom, router],
+  );
+
   const quoteTotal = claims.filter((c) => c.locator_kind === 'quote').length;
   const quoteHit = claims.filter((c) => c.locator_kind === 'quote' && c.verified === 1).length;
   const absenceTotal = claims.filter((c) => c.locator_kind === 'absence').length;
+
+  /**
+   * 看板格子点进来时只显示那一格。
+   * 没有筛选条件时原样显示全部——不改变默认视图。
+   */
+  const filtered = filter.dim !== null || filter.type !== null;
+  const visible = !filtered
+    ? claims
+    : claims.filter(
+        (c) =>
+          (filter.dim === null || c.dimension === filter.dim) &&
+          (filter.type === null || c.type === filter.type),
+      );
 
   return (
     <>
@@ -193,6 +275,43 @@ export default function DocPage({ params }: { params: Promise<{ id: string }> })
 
         {claims.length > 0 && (
           <>
+            {/* ── 开场入口：闭环的起点。没有它，后面所有页面都只是"只能看不能走" ── */}
+            <section className="launch" aria-label="开始质询">
+              <div className="launch-hd">
+                <h2>开始质询</h2>
+                <p>
+                  三位评委会各挑一条最危险的质疑点发问
+                  {reviseFrom ? '；这是「改后材料重审」，报告里会显示与上一场的风险分差和质疑点增删。' : '。'}
+                </p>
+              </div>
+              <div className="launch-btns">
+                <button className="btn" onClick={() => startSession('quick')} disabled={starting !== null}>
+                  {starting === 'quick' ? '正在排席位…' : '开始质询 · quick（3 问出报告）'}
+                </button>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => startSession('full')}
+                  disabled={starting !== null}
+                >
+                  {starting === 'full' ? '正在排席位…' : '完整评审 · full（最多 15 轮）'}
+                </button>
+                {reviseFrom ? (
+                  <button className="btn" onClick={() => startSession('revise')} disabled={starting !== null}>
+                    {starting === 'revise' ? '正在排席位…' : '用改后材料重审 · revise'}
+                  </button>
+                ) : null}
+              </div>
+              <p className="launch-note">
+                随时可以「结束并出报告」——报告不会因为提前结束而缺席。
+              </p>
+              {startErr ? (
+                <div className="err">
+                  <span className="code">E_START</span>
+                  {startErr}
+                </div>
+              ) : null}
+            </section>
+
             <div style={{ marginTop: 22, display: 'flex', gap: 12, alignItems: 'center' }}>
               <button className="btn" onClick={extract} disabled={busy}>
                 {busy ? '正在重抽…' : '重新抽取'}
@@ -214,9 +333,33 @@ export default function DocPage({ params }: { params: Promise<{ id: string }> })
               </div>
             )}
 
+            {/* 从报告看板的某一格点进来：明说"只显示这一格"，并给一键退出 */}
+            {filtered ? (
+              <div className="filterbar">
+                <span className="filter-bar-label">只看</span>
+                {filter.dim ? (
+                  <span className="dimtag" style={{ background: 'var(--paper-2)' }}>
+                    <i style={{ background: DIM_COLOR[filter.dim], width: 6, height: 6, display: 'inline-block' }} />
+                    {DIM_LABEL[filter.dim]}
+                  </span>
+                ) : null}
+                {filter.type ? <span className="dimtag">{TYPE_LABEL[filter.type]}</span> : null}
+                <b>{visible.length}</b> 条
+                <button
+                  className="toggle"
+                  onClick={() => setFilter({ dim: null, type: null })}
+                  style={{ marginLeft: 'auto' }}
+                >
+                  显示全部质疑点
+                </button>
+              </div>
+            ) : null}
+
             <div className="cols">
-              {(['method', 'engineering', 'value'] as const).map((tp) => {
-                const list = claims.filter((c) => c.type === tp);
+              {(['method', 'engineering', 'value'] as const)
+                .filter((tp) => filter.type === null || filter.type === tp)
+                .map((tp) => {
+                const list = visible.filter((c) => c.type === tp);
                 return (
                   <section className="col" key={tp}>
                     <div className="colhd">

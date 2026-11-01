@@ -217,6 +217,81 @@
 }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
+.btn-ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line-2);
+}
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+/* ── 开场入口：闭环的起点 ──
+   阶段 4 结束时这一页只有「开始/重新抽取」，没有任何地方能真的开一场质询，
+   README 写的闭环在界面上是断的。这块就是补那个断口。 */
+.launch {
+  margin-top: 24px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  padding: 16px 18px 14px;
+}
+
+.launch-hd h2 {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 5px;
+  letter-spacing: 0;
+}
+
+.launch-hd p {
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+
+.launch-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.launch-note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--line-2);
+  margin: 10px 0 0;
+}
+
+/* ── 从看板某一格点进来的过滤条 ── */
+.filterbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 9px 12px;
+  border: 1px dashed var(--line-2);
+  background: var(--paper-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--ink-2);
+}
+
+.filter-bar-label {
+  color: var(--muted);
+}
+
+.filterbar b {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
 .err {
   margin-top: 20px;
   padding: 14px 16px;

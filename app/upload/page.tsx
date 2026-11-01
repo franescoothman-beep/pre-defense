@@ -84,6 +84,20 @@ export default function UploadPage() {
   const [demoErr, setDemoErr] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  /**
+   * 复练「revise」的上一场会话 id（从报告页的「改完材料再看一次」带过来）。
+   *
+   * 【为什么要一路透传到 doc 页】revise 的语义是"同一份作品的新版本重新送审"，
+   * 少了这个 id，重审就变成一场孤立的普通评审 —— 报告里不会有风险分差，
+   * 用户也就看不到"改材料到底把风险降低了多少"，而这恰恰是 revise 唯一的说服力。
+   */
+  const [reviseFrom, setReviseFrom] = useState<string | null>(null);
+
+  useEffect(() => {
+    const v = new URLSearchParams(window.location.search).get('revise');
+    if (v) setReviseFrom(v);
+  }, []);
+
   const loadList = useCallback(async () => {
     try {
       const r = await fetch('/api/docs', { cache: 'no-store' });
@@ -214,6 +228,16 @@ export default function UploadPage() {
           先把你准备好的材料交给质询台。系统会逐页取文本、切成可溯源的文本块——
           后面三位评委说的每一句质疑，都要能点回这里的某一块原文。
         </p>
+
+        {/* 改后重审：明确告诉用户"这次上传会被当成上一场那份材料的新版本" */}
+        {reviseFrom ? (
+          <div className="err" style={{ borderLeftColor: 'var(--dim-depth)', background: 'var(--paper-2)' }}>
+            <span className="code" style={{ color: 'var(--dim-depth)' }}>改后重审</span>
+            你正在为上一场（{reviseFrom.slice(0, 8)}…）提交<b>改后的材料</b>。
+            重审出的报告会显示材料风险分差，以及两次之间质疑点的增删——
+            这是唯一能证明「风险真的降下来了」的路径。
+          </div>
+        ) : null}
 
         <div className="frame">
           {/*
@@ -346,8 +370,12 @@ export default function UploadPage() {
                   </div>
                 ))}
                 <div style={{ padding: '4px 20px 18px' }}>
-                  <a className="btn" href={`/doc/${doc.docId}`} style={{ textDecoration: 'none', display: 'inline-block' }}>
-                    进入质疑点抽取 →
+                  <a
+                    className="btn"
+                    href={`/doc/${doc.docId}${reviseFrom ? `?revise=${encodeURIComponent(reviseFrom)}` : ''}`}
+                    style={{ textDecoration: 'none', display: 'inline-block' }}
+                  >
+                    {reviseFrom ? '进入质疑点抽取（改后重审）→' : '进入质疑点抽取 →'}
                   </a>
                 </div>
               </div>
