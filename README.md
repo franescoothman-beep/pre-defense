@@ -92,8 +92,9 @@ docs/ai-logs/   每个功能的 AI 协作记录（含 Bug 与修复过程）
 
 ```bash
 npm run build           # 必须过
-npm run test            # 纯函数单测（46 个）
-npm run test:fixtures   # 用当前 schema 校验全部回放剧本
+npm run test            # 纯函数单测（414 个）
+npm run test:fixtures   # 用当前 schema 校验全部回放剧本（三层：zod / 定位机检 / 评委锚点去重）
+npm run demo            # 零 key 起服务（MOCK 回放，自动播种内置样例）
 ```
 
 ## 提交历史说明（关于首个 commit）
