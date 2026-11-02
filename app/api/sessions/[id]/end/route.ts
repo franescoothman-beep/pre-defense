@@ -312,6 +312,9 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   const coverage = coverageOf(
     riskCells,
     performance.map((p) => ({ dimension: p.dimension, score: p.score })),
+    // 轮数取本场真实作答过的问答条数（含追问）：quick 3 问答满即 3–6 轮，
+    // 写进文案是为了让"覆盖 3/4 维"读出档位原因，而不是系统漏做
+    { rounds: turns.filter((t) => t.question !== '').length },
   );
 
   const advice = modelOut?.advice?.trim() ||

@@ -458,14 +458,31 @@ export function boardOf(
   });
 }
 
-/** 覆盖度：「本场 6 轮，覆盖 3/4 维 · 完整评审请切 full 档」 */
-export function coverageOf(risk: RiskCell[], perf: Array<{ dimension: Dimension; score: number | null }>) {
+/**
+ * 覆盖度：「本场 6 轮，覆盖 3/4 维 · 完整评审请切 full 档」
+ *
+ * 【为什么要把轮数写进去】只写「覆盖 3/4 维」会让 quick 档看起来像做漏了。
+ * 真实情况是 quick 只排得到 3 个主问，第 4 维根本轮不到——把轮数摆在前面，
+ * 读者才知道这是档位选择的结果，而不是系统的缺口。缺的那一维由页面补一句
+ * 「完整评审请切 full 档」，把"没做全"翻译成"可以继续"。
+ */
+export function coverageOf(
+  risk: RiskCell[],
+  perf: Array<{ dimension: Dimension; score: number | null }>,
+  opts: { rounds?: number } = {},
+) {
   const coveredRisk = risk.filter((r) => r.risk_score !== null).length;
   const coveredPerf = perf.filter((p) => p.score !== null).length;
+  const covered = Math.max(coveredRisk, coveredPerf);
+  const rounds = opts.rounds;
   return {
     risk: { covered: coveredRisk, total: DIMENSIONS.length },
     perf: { covered: coveredPerf, total: DIMENSIONS.length },
-    note: `覆盖 ${Math.max(coveredRisk, coveredPerf)}/${DIMENSIONS.length} 维`,
+    // 没传轮数时退回旧文案（纯函数层不替调用方编造轮数）
+    note:
+      rounds === undefined
+        ? `覆盖 ${covered}/${DIMENSIONS.length} 维`
+        : `本场 ${rounds} 轮，覆盖 ${covered}/${DIMENSIONS.length} 维`,
   };
 }
 

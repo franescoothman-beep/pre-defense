@@ -76,6 +76,16 @@ test('coverageOf：给出覆盖度文案', () => {
   assert.ok(c.note.includes('2/4'));
 });
 
+test('coverageOf：传了轮数就把轮数写进文案（quick 档缺口要读成档位原因，不是漏做）', () => {
+  const risk = aggregateMaterialRisk(claims);
+  const perf = normalizePerformance([{ dimension: 'logic', score: 70 }]);
+  const c = coverageOf(risk, perf, { rounds: 5 });
+  assert.ok(c.note.includes('本场 5 轮'), `文案应含轮数，实际：${c.note}`);
+  assert.ok(c.note.includes(`/${DIMENSIONS.length} 维`), `文案应含覆盖分母，实际：${c.note}`);
+  // 没传轮数时不编造轮数（纯函数层不替调用方假设）
+  assert.ok(!coverageOf(risk, perf).note.includes('轮'));
+});
+
 test('actionabilityOf：「该写没写」占比', () => {
   const a = actionabilityOf(claims);
   assert.equal(a.total, 3);

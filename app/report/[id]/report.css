@@ -298,6 +298,59 @@
   margin: 0;
 }
 
+/* ── 评委打分散点（每维一排，看分歧有多大） ── */
+.perf-spread {
+  margin: 0 0 8px;
+}
+
+.spread-axis {
+  position: relative;
+  height: 14px;
+  background:
+    linear-gradient(to right, var(--line) 0 1px, transparent 1px 100%) 0 50% / 25% 1px repeat-x,
+    linear-gradient(to right, var(--line) 0 100%) 0 50% / 100% 1px no-repeat;
+}
+
+.spread-dot {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--paper);
+}
+
+.spread-dot.is-good {
+  background: var(--green);
+}
+
+.spread-dot.is-mid {
+  background: var(--red-deep);
+  opacity: 0.75;
+}
+
+.spread-dot.is-bad {
+  background: var(--red);
+}
+
+/* 汇总分的竖线：与散点同轴，位置差就是"分歧" */
+.spread-agg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--ink-2);
+  transform: translateX(-50%);
+}
+
+.spread-legend {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
 /* ── 被引用的原文（点开引用后就地展开） ── */
 .report-opened {
   border: 1px solid var(--red-line);

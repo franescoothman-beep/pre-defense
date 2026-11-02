@@ -351,7 +351,8 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
           </div>
         ) : null}
 
-        {/* 覆盖缺口：quick 档只问 3 问，必然覆盖不满 4 维 —— 必须如实写 */}
+        {/* 覆盖缺口：quick 档只问 3 问，必然覆盖不满 4 维 —— 必须如实写，
+            且要写成"档位选择的结果 + 下一步能怎么补"，不能写成"系统漏做" */}
         {data.coverage ? (
           <div className="report-coverage">
             <b>{data.coverage.note}</b>
@@ -359,6 +360,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
               <span>
                 · 本场未覆盖：{data.coverage.absentDimensions.map((d) => DIM_CN[d as Dim] ?? d).join('、')}
                 （材料里没有该维度的质疑点，或本场轮次没排到）
+                {ctx?.mode === 'quick' || ctx?.mode === 'drill' ? ' · 完整评审请切 full 档' : ''}
               </span>
             ) : null}
           </div>
@@ -564,24 +566,81 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
               </span>
             </div>
 
-            {perf.map((p) => (
-              <article key={p.dimension} className="perf-card">
-                <div className="perf-head">
-                  <span className="perf-dim">{p.label}</span>
-                  {p.score === null ? (
-                    <span className="perf-uncovered">本场未问到</span>
-                  ) : (
-                    <span className="perf-score">{p.score}</span>
-                  )}
-                </div>
-                {p.score !== null ? (
-                  <div className="perf-track" aria-hidden="true">
-                    <i style={{ width: `${p.score}%` }} />
+            {perf.map((p) => {
+              /*
+                每个维度下面那排小点 = **各评委在这个维度上的打分**（0–5 换算成百分比）。
+                上面那个大数字是本维的**汇总分**（模型给），一个数字看不出分歧：
+                三位评委给了 2/5、2/5、1/5 和三人齐给 2/5，汇总分可能一样，
+                但前者说明这一维是真的不稳。散点把这件事摆出来，
+                竖线把汇总分标在同一个轴上，两者的位置差就是"分歧有多大"。
+
+                【为什么按评委聚合，而不是逐问画点】
+                备赛计划的原话是"单评委分数不可信，三评委分布可信"——
+                要看的是**评委之间**的差异。同一个评委在同一维上被追问两次会给两个分，
+                逐问画点会让"一人给了两次 1 分"长得像"两位评委都给了 1 分"，
+                正好把要看的东西糊掉。所以一评委一点，取该评委在本维的平均，
+                点数（≤3）才是真正的评委数；hover 里仍然列出逐问原始分。
+              */
+              const byJudge = new Map<string, Array<{ score: number; seq: number; kind: string }>>();
+              for (const t of ctx?.trajectory ?? []) {
+                if (t.dimension !== p.dimension || t.score === null) continue;
+                const list = byJudge.get(t.personaName) ?? [];
+                list.push({ score: t.score, seq: t.seq, kind: t.kind });
+                byJudge.set(t.personaName, list);
+              }
+              const dots = [...byJudge.entries()].map(([name, list]) => ({
+                name,
+                list,
+                avg: list.reduce((s, x) => s + x.score, 0) / list.length,
+              }));
+              return (
+                <article key={p.dimension} className="perf-card">
+                  <div className="perf-head">
+                    <span className="perf-dim">{p.label}</span>
+                    {p.score === null ? (
+                      <span className="perf-uncovered">本场未问到</span>
+                    ) : (
+                      <span className="perf-score">{p.score}</span>
+                    )}
                   </div>
-                ) : null}
-                {p.comment ? <p className="perf-comment">{p.comment}</p> : null}
-              </article>
-            ))}
+                  {p.score !== null ? (
+                    <div className="perf-track" aria-hidden="true">
+                      <i style={{ width: `${p.score}%` }} />
+                    </div>
+                  ) : null}
+                  {dots.length > 0 ? (
+                    <div className="perf-spread" aria-label={`${p.label}：各评委打分分布`}>
+                      <div className="spread-axis">
+                        {dots.map((d) => (
+                          <i
+                            key={d.name}
+                            className={`spread-dot ${scoreDotCss(d.avg)}`}
+                            style={{ left: `${scorePercent(d.avg)}%` }}
+                            title={`${d.name}：${d.list
+                              .map((x) => `${x.score}/5（第 ${x.seq} 问${x.kind === 'followup' ? ' · 追问' : ''}）`)
+                              .join('、')}${
+                              d.list.length > 1 ? ` → 该评委本维均值 ${d.avg.toFixed(1)}/5` : ''
+                            }`}
+                          />
+                        ))}
+                        {p.score !== null ? (
+                          <i
+                            className="spread-agg"
+                            style={{ left: `${p.score}%` }}
+                            title={`本维汇总 ${p.score}（模型给分，散点作参照）`}
+                          />
+                        ) : null}
+                      </div>
+                      <p className="spread-legend">
+                        {dots.length} 位评委给分 · 竖线 = 本维汇总
+                        {dots.length === 1 ? ' · 只有一位评委问过，看不出分歧' : ''}
+                      </p>
+                    </div>
+                  ) : null}
+                  {p.comment ? <p className="perf-comment">{p.comment}</p> : null}
+                </article>
+              );
+            })}
           </section>
         </div>
 
@@ -899,6 +958,18 @@ function scoreDotCss(score: number): string {
   if (score >= 4) return 'is-good';
   if (score >= 3) return 'is-mid';
   return 'is-bad';
+}
+
+/**
+ * 判分 5 档 → 0–100 百分比（散点横轴用）。
+ *
+ * 与 lib/prompts/evaluate.v1.ts 的 scoreToPercent 同口径——
+ * 这里必须自己算一份，因为页面是 client 组件，不能 import 服务端的 prompt 模块。
+ * 两处都是同一行公式（钳位后 ×20），改动时都要改。
+ */
+function scorePercent(score: number): number {
+  const clamped = Math.max(0, Math.min(5, score));
+  return Math.round(clamped * 20);
 }
 
 /** ISO 时间 → 本地「MM-DD HH:mm」（报告的落款时间） */
