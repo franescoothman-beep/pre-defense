@@ -63,6 +63,19 @@
 }
 
 @media (max-width: 720px) {
+  /* 窄屏：角标那一行原本是单行 flex，中文长句不换行会把整页撑出横向滚动、
+   * 右边缘的字直接被切掉（400px 实测）。允许换行 + 让文字块可收缩。 */
+  .mock-banner {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    row-gap: 4px;
+  }
+
+  .mock-why {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
   .mock-only {
     display: none; /* 窄屏优先保留"演示模式"本身，次要信息让位 */
   }

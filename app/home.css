@@ -1,0 +1,366 @@
+/* app/home.css —— 首页样式（方向 E：暖纸 · 朱批）
+   颜色一律走 app/globals.css 的 token，不写十六进制（铁律 9）。
+   字号只用 11 / 13.5 / 17 / 34 / 62 五级，字重只用 400/500/600（§3.2 硬规格）。 */
+
+.ribbon {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 20px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--red);
+  border-bottom: 1px solid var(--line);
+  background: var(--ribbon-bg);
+}
+
+.ribbon b {
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+.ribbon span {
+  color: var(--muted);
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+}
+
+.wrap {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 48px 20px 72px;
+}
+
+/* ── 首屏 ── */
+.hero {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 36px;
+}
+
+.wordmark {
+  font-family: var(--font-serif);
+  font-size: 62px;
+  letter-spacing: 0.22em;
+  line-height: 1;
+  margin: 0;
+  color: var(--ink);
+}
+
+.wordmark .dot {
+  color: var(--red);
+}
+
+.tagline {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--ink-2);
+  line-height: 1.95;
+  margin: 20px 0 0;
+  max-width: 56ch;
+}
+
+.tagline b {
+  color: var(--ink);
+  font-weight: 600;
+  /* 朱批感：不做高亮底色，只在字下画一道细线，像老师划的重点 */
+  border-bottom: 1px solid var(--red-line);
+  padding-bottom: 1px;
+}
+
+/* 三步流水：把"产品怎么用"压成三个名词 */
+.flow {
+  display: flex;
+  gap: 0;
+  margin: 32px 0 0;
+  border: 1px solid var(--line-2);
+  background: var(--paper);
+}
+
+.flow .step {
+  flex: 1;
+  padding: 18px 20px;
+  border-right: 1px solid var(--line);
+}
+
+.flow .step:last-child {
+  border-right: 0;
+}
+
+.flow .no {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--red);
+}
+
+.flow .nm {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--ink);
+  margin: 6px 0 0;
+}
+
+.flow .ds {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--muted);
+  margin: 6px 0 0;
+}
+
+/* ── 入口 ── */
+.enter {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 32px;
+}
+
+.btn {
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  padding: 11px 24px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line-2);
+}
+
+.note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+/* ── 为什么不是"随便问问" ── */
+.sect {
+  margin-top: 44px;
+}
+
+.sect .hd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--red);
+  margin: 0 0 14px;
+}
+
+.sect .lede {
+  font-family: var(--font-serif);
+  font-size: 13.5px;
+  line-height: 1.95;
+  color: var(--ink-2);
+  margin: 0 0 18px;
+  max-width: 62ch;
+}
+
+/* 两条对比：普通预演 vs 这里 */
+.vs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid var(--line-2);
+}
+
+.vs > div {
+  padding: 18px 20px;
+  background: var(--paper);
+}
+
+.vs > div + div {
+  border-left: 1px solid var(--line);
+  background: var(--paper-3);
+}
+
+.vs .ttl {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.vs .mine .ttl {
+  color: var(--red);
+}
+
+.vs ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vs li {
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: var(--ink-2);
+  padding-left: 14px;
+  position: relative;
+}
+
+.vs li + li {
+  margin-top: 6px;
+}
+
+.vs li::before {
+  content: '·';
+  position: absolute;
+  left: 2px;
+  color: var(--muted);
+}
+
+.vs .mine li::before {
+  content: '—';
+  color: var(--red);
+}
+
+/* ── 证据链说明（这是作品的核心主张，必须上首页） ── */
+.proof {
+  margin-top: 44px;
+  border: 1px solid var(--red-line);
+  background: var(--red-soft);
+  padding: 22px 24px;
+}
+
+.proof .hd {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 10px;
+}
+
+.proof .tx {
+  font-size: 13.5px;
+  line-height: 1.9;
+  color: var(--ink-2);
+  margin: 0;
+  max-width: 64ch;
+}
+
+.proof .tx b {
+  color: var(--red-deep);
+}
+
+/* 两类锚点的视觉区分（quote 实线 / absence 虚线，全站一致） */
+.proof .two {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--red-line);
+}
+
+.proof .two div {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+  padding-left: 12px;
+}
+
+.proof .two .q {
+  border-left: 2px solid var(--red);
+}
+
+.proof .two .a {
+  border-left: 2px dashed var(--line-2);
+}
+
+/* ── 页脚 ── */
+.foot {
+  margin-top: 48px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.foot a {
+  color: var(--ink-2);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line-2);
+}
+
+/* ── 窄屏（≤640px）：单列，不做横向滚动 ──
+ *
+ * 【实测来源】400px 下用 iframe 探针逐页量 `documentElement.scrollWidth`
+ * 发现整页被撑宽，撑宽的是两个单行 flex 容器：顶部 `.ribbon` 与
+ * `components/MockBadge.css` 的 `.mock-banner`——中文长句不换行时
+ * flex 子项不会自己收缩，于是把 body 撑出横向滚动、右边缘的字被切掉。
+ * 两处都加了 `flex-wrap: wrap` + 让文字块 `flex: 1 1 100%` 换行。
+ *
+ * 【顺带清掉 max-width】`.tagline` 是 `56ch`、`.lede` 是 `62ch`、`.proof .tx` 是 `64ch`；
+ * `ch` 按"0"的字宽算（≈0.5em），窄屏下这类"每行 N 字"的约束本来就排不下，
+ * 留着只会让内容提前折行、看起来比容器窄一截——窄屏直接放开到 100%。 */
+@media (max-width: 640px) {
+  /* ribbon 是单行 flex（"材料 → 质询 → 风险报告"长句），不换行会把整页撑宽。 */
+  .ribbon {
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    row-gap: 4px;
+  }
+
+  .ribbon span {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .wrap {
+    padding: 32px 16px 56px;
+  }
+
+  .tagline,
+  .sect .lede,
+  .proof .tx {
+    max-width: none;
+  }
+
+  .wordmark {
+    font-size: 34px;
+    letter-spacing: 0.18em;
+  }
+
+  .tagline {
+    font-size: 13.5px;
+  }
+
+  .flow {
+    flex-direction: column;
+  }
+
+  .flow .step {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .flow .step:last-child {
+    border-bottom: 0;
+  }
+
+  .vs {
+    grid-template-columns: 1fr;
+  }
+
+  .vs > div + div {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
