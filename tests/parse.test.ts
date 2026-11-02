@@ -29,6 +29,22 @@ test('itemsToParagraphs：不同 y 的行分开（PDF 坐标 y 向下递减，y 
   assert.equal(out[1], '第二行');
 });
 
+// ── y 容差 2.5 的标定（scripts/calibrate-y-tolerance.mjs 的结论固化成回归）──
+// 扫描结论：容差 t 能吸收同行内 ≤t 的基线抖动；行距 ≥4 的相邻行在容差 ≤3.5 时都不会被并行。
+// 2.5 = 吸收实测 PDF 抖动（<2.4）与不并行 4pt 行距之间的安全中点。
+test('y 容差标定：同行抖动 2.4 仍是一行（默认容差 2.5）', () => {
+  const items = glyphItems('基线抖动不超过二点四', 100, 2.4);
+  const out = itemsToParagraphs(items);
+  assert.equal(out.length, 1, '抖动 2.4 < 2.5，必须仍聚成一行');
+});
+
+test('y 容差标定：行距 4 的相邻行在默认容差下不并行', () => {
+  const out = itemsToParagraphs(
+    [...glyphItems('上行文字内容', 200), ...glyphItems('下行文字内容', 196)],
+  );
+  assert.equal(out.length, 2, '行距 4 ≥ 安全下界，不得并成一行');
+});
+
 test('cleanParagraphs：去掉纯页码行、合并半句', () => {
   const raw = ['第 3 页', '这是一段被折断的半句话', '继续的下半句。', '', '  ', '另一段。'];
   const out = cleanParagraphs(raw);
