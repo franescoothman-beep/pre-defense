@@ -18,6 +18,8 @@
 //    由路由层转成可读错误——比让模型跑到一半被平台限流好得多。
 
 import { createHash } from 'node:crypto';
+import { appendFileSync, mkdirSync } from 'node:fs';
+import path from 'node:path';
 import type { ZodType } from 'zod';
 import { z } from 'zod';
 import { readUpstream } from './sse';
@@ -141,6 +143,45 @@ export function promptHashOf(text: string): string {
 
 export function isMock(): boolean {
   return process.env.MOCK_LLM === '1';
+}
+
+/**
+ * 原始响应落盘（只在 `LLM_CAPTURE=1` 时开启）。
+ *
+ * 【为什么需要在产品代码里加这个钩子】
+ * 录制回放剧本（fixtures/llm/*.json）要的不是"模型大概说了什么"，而是
+ * **通过 schema 校验之后的那个对象本身**。若在录制脚本里另写一套 fetch + 解析，
+ * 就等于把 lib/llm.ts 里的重试、extractJson 三段容错、zod 校验全部复制一遍——
+ * 复制出来的那份一定会在某次改 schema 后悄悄跑偏。
+ * 所以钩子挂在唯一的出口上：抓到的必然与线上跑的是同一份数据。
+ *
+ * 【为什么不落库】S4 规定材料与密钥不落库；抓来的原文里既有 prompt（含材料片段）
+ * 又有模型输出。写到 gitignore 覆盖的 `logs/` 下，用完即弃，不进库、不进报告。
+ */
+function capture(input: CallInput, data: unknown, meta: CallMeta): void {
+  if (process.env.LLM_CAPTURE !== '1') return;
+  try {
+    const dir = path.join(process.cwd(), 'logs');
+    mkdirSync(dir, { recursive: true });
+    appendFileSync(
+      path.join(dir, 'llm-capture.jsonl'),
+      `${JSON.stringify({
+        at: new Date().toISOString(),
+        phase: input.phase,
+        sessionKey: input.sessionKey,
+        promptHash: meta.promptHash,
+        attempt: meta.attempts,
+        temperature: input.temperature ?? 0.2,
+        // prompt 原文只在这里留一份，用于 prompt-eval 的同输入对照（v1 vs v2 必须同输入）
+        system: input.system,
+        user: input.user,
+        response: data,
+      })}\n`,
+      'utf8',
+    );
+  } catch {
+    // 抓取失败不能影响主流程
+  }
 }
 
 /**
@@ -284,7 +325,7 @@ async function callReal(input: CallInput): Promise<{ data: unknown; meta: CallMe
         continue;
       }
 
-      return {
+      const out = {
         data: checked.data,
         meta: {
           phase: input.phase,
@@ -296,6 +337,8 @@ async function callReal(input: CallInput): Promise<{ data: unknown; meta: CallMe
           attempts: attempt,
         },
       };
+      capture(input, out.data, out.meta);
+      return out;
     } catch (e) {
       // abort => 超时
       const name = (e as Error).name;
@@ -313,8 +356,23 @@ async function callReal(input: CallInput): Promise<{ data: unknown; meta: CallMe
   throw lastErr ?? new LlmError('E_HTTP', '调用模型失败。');
 }
 
-/** mock 回放：按 phase + seq 递增，跨场按 sessionKey 独立游标 */
-const mockCursor = new Map<string, number>();
+/**
+ * mock 回放游标。
+ *
+ * 【键为什么是 `sessionKey + ':' + phase`，挂在 globalThis 上】
+ * 1) phase 隔离：同一场会话里多个 phase 共用同一个 sessionKey
+ *      - `question`  :: app/api/sessions/[id]/stream/route.ts:291
+ *      - `evaluate`  :: app/api/sessions/[id]/answer/route.ts:136
+ *      - `report`    :: app/api/sessions/[id]/end/route.ts:134
+ *    若游标只按 sessionKey 计数，一次 /answer 里的 evaluate 会把 question 的游标往前推一格，
+ *    三问本该 q1→q2→q3，却变成 q1→q3→q2（错位）。序号驱动的前提是每个 phase 各自有序，
+ *    所以游标必须按 phase 隔离；跨场仍靠 sessionKey 前缀区分。
+ * 2) 挂在 globalThis：Next 开发服务器在热重载 / 多 worker 时会重新求值 lib/llm.ts，
+ *    模块顶层的 `const mockCursor = new Map()` 随之被重建，游标归零 → 多个 question 都取回 q1。
+ *    与 lib/db.ts 的 `__db` 单例同理，把游标存到 globalThis 才能跨重载存活。
+ */
+const g = globalThis as unknown as { __mockCursor?: Map<string, number> };
+const mockCursor = g.__mockCursor ?? (g.__mockCursor = new Map<string, number>());
 
 /**
  * 复位某次回放的游标。
@@ -324,14 +382,18 @@ const mockCursor = new Map<string, number>();
  * 表现为"重抽一次就把质疑点全弄没了"，比抽不出来更让人困惑。
  */
 export function resetMockCursor(sessionKey: string): void {
-  mockCursor.delete(sessionKey);
+  // 键是 `sessionKey:phase`，复位要把这场会话名下的所有 phase 一起清掉
+  for (const k of [...mockCursor.keys()]) {
+    if (k === sessionKey || k.startsWith(`${sessionKey}:`)) mockCursor.delete(k);
+  }
 }
 
 async function callMock(input: CallInput): Promise<{ data: unknown; meta: CallMeta }> {
   const { loadFixture, loadAll } = await import('./mock');
   const all = loadAll(input.phase);
-  const seq = mockCursor.get(input.sessionKey) ?? 0;
-  mockCursor.set(input.sessionKey, seq + 1);
+  const key = `${input.sessionKey}:${input.phase}`;
+  const seq = mockCursor.get(key) ?? 0;
+  mockCursor.set(key, seq + 1);
 
   /**
    * 【耗尽时循环回放，而不是报 E_MOCK_MISS】
@@ -425,8 +487,9 @@ async function* streamBody(input: CallInput): AsyncGenerator<string, { data: unk
   if (isMock()) {
     const { loadFixture, loadAll } = await import('./mock');
     const all = loadAll(input.phase);
-    const seq = mockCursor.get(input.sessionKey) ?? 0;
-    mockCursor.set(input.sessionKey, seq + 1);
+    const key = `${input.sessionKey}:${input.phase}`;
+    const seq = mockCursor.get(key) ?? 0;
+    mockCursor.set(key, seq + 1);
 
     // 与 callMock 同一套策略：耗尽则循环回放（序号驱动下是自洽的），
     // 只有"一条 fixture 都没有"才报 E_MOCK_MISS。原因见 callMock 里的长注释。
@@ -542,6 +605,7 @@ async function* streamBody(input: CallInput): AsyncGenerator<string, { data: unk
     mock: false,
     attempts: 1,
   };
+  capture(input, checked.data, meta);
   await logCall(meta, 1);
   return { data: checked.data, meta };
 }

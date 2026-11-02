@@ -88,10 +88,16 @@ test('loadAll：不存在的 phase → 空数组（不抛）', () => {
   resetMockCache();
   // 【这条断言随进度演化过一次】
   // 阶段 2 时它是 `loadAll('personas') === []`（那时 personas 还没 fixture）。
-  // 阶段 3 录了 personas 之后这个前提不再成立 —— 测试跟着数据过期了，不是产品坏了。
-  // 现在用**结构上不可能有 fixture** 的 phase 来测同一件事：evaluate / report 属阶段 4–5。
-  assert.deepEqual(loadAll('evaluate'), []);
-  assert.deepEqual(loadAll('report'), []);
+  // 阶段 3 录了 personas 之后这个前提不再成立；阶段 6 录了 evaluate / report 后，
+  // 这两个 phase 也不再是"结构上不可能有 fixture"。测试跟着数据走，断言改成：
+  // 已录的 phase 能读到且结构完整，真正不可能的 phase 才返回空。
+  const ev = loadAll('evaluate');
+  assert.ok(ev.length >= 1, `evaluate fixture 应已录（阶段 6），实际 ${ev.length}`);
+  for (const e of ev) assert.ok('response' in e, 'evaluate 每条必须带 response');
+  const rp = loadAll('report');
+  assert.ok(rp.length >= 1, `report fixture 应已录（阶段 6），实际 ${rp.length}`);
+  // 真正不可能的 phase（拼写不合法）仍返回空且不抛
+  assert.deepEqual(loadAll('nonexistent_phase' as unknown as 'claims'), []);
 });
 
 test('loadFixture：在范围内取到条目，越界 → null', () => {

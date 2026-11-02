@@ -1,0 +1,227 @@
+{
+  "generatedAt": "2026-11-02T11:44:07.976Z",
+  "docId": "86322517-36ae-46cc-8dfa-300150d283dd",
+  "runs": 2,
+  "machine": {
+    "quote_hit_rate": {
+      "hit": 11,
+      "total": 11,
+      "rate": 1,
+      "target": 0.95
+    },
+    "absence_coverage": {
+      "ok": 1,
+      "total": 1,
+      "rate": 1,
+      "target": 0.95
+    },
+    "double_sample_consistency": {
+      "ok": 3,
+      "pairs": 3,
+      "rate": 1,
+      "target": 0.75
+    },
+    "converge_rate": {
+      "rate": 1,
+      "quick_all_converged": true,
+      "target": 0.9
+    },
+    "quick_duration_sec": {
+      "perRun": [
+        43.132,
+        39.033
+      ],
+      "max": 43.132,
+      "target": 480
+    },
+    "cost": {
+      "note": "token 与首字延迟见 logs/llm-logs（llm_logs 表），此处记录整场耗时",
+      "sessions": [
+        {
+          "sessionId": "993bb96c-2558-4e66-a782-fcd341912e06",
+          "questions": 3,
+          "elapsedSec": 43.132
+        },
+        {
+          "sessionId": "2a1fce13-c4be-4ab3-bb6b-bd5a67ae3019",
+          "questions": 3,
+          "elapsedSec": 39.033
+        }
+      ]
+    }
+  },
+  "human": {
+    "type_check": {
+      "sampled": 12,
+      "target": 0.8,
+      "note": "逐条判 model_type 是否与 text 匹配，人工填 pass 数后算比例"
+    },
+    "falsification_validity": {
+      "sampled": 12,
+      "target": 0.8,
+      "note": "逐条判 quote 是否真的支持该质疑，人工填 pass 数后算比例"
+    },
+    "sample": [
+      {
+        "no": 1,
+        "claim_id": "d6a27be9-0a1e-4a67-b489-17bc4e89641c",
+        "model_type": "method",
+        "text": "仅用三所小学一学期1240条数据，样本代表性如何支撑对全市乃至全省的推广？",
+        "quote": "我们采集了某市三所小学一学期的课后服务记录，共计 1240 条",
+        "kind": "quote",
+        "scope": null,
+        "source": "我们采集了某市三所小学一学期的课后服务记录，共计 1240 条。数据包含学生参与时长、活动类型与家长反馈评分三类字段。"
+      },
+      {
+        "no": 2,
+        "claim_id": "73f01725-2ed7-4b3d-bacc-7b8669aeb00b",
+        "model_type": "method",
+        "text": "未划分训练集与测试集，模型系数和显著性是否只是过拟合于同一批数据？",
+        "quote": "实验在同一批数据上进行，未划分训练集与测试集",
+        "kind": "quote",
+        "scope": null,
+        "source": "实验在同一批数据上进行，未划分训练集与测试集。结果显示，参与时长与满意度呈显著正相关，回归系数为 0.34，p 值小于 0.05。"
+      },
+      {
+        "no": 3,
+        "claim_id": "c0a1f8e2-ddc7-4e55-87f6-5a7afa495eca",
+        "model_type": "method",
+        "text": "把相关关系直接解读为可推广的管理结论，因果方向是否可能反向或由第三变量驱动？",
+        "quote": "我们认为该结论可以推广到全市乃至全省的课后服务管理场景",
+        "kind": "quote",
+        "scope": null,
+        "source": "我们认为该结论可以推广到全市乃至全省的课后服务管理场景。"
+      },
+      {
+        "no": 4,
+        "claim_id": "1741ded3-7426-48a0-be44-ab70f51a10d4",
+        "model_type": "method",
+        "text": "1240条记录来自三所学校，是否考虑学校层面的聚类效应而直接做个体级回归？",
+        "quote": "",
+        "kind": "absence",
+        "scope": "§2 数据与方法（块3–4）",
+        "source": "我们采集了某市三所小学一学期的课后服务记录，共计 1240 条。数据包含学生参与时长、活动类型与家长反馈评分三类字段。"
+      },
+      {
+        "no": 5,
+        "claim_id": "6a401b1c-cd8b-491e-b914-f951caff2016",
+        "model_type": "method",
+        "text": "决定系数0.62就断言能解释大部分满意度差异，剩余38%的方差来源是否被忽略？",
+        "quote": "模型的决定系数为 0.62，说明三类字段能解释大部分满意度差异",
+        "kind": "quote",
+        "scope": null,
+        "source": "在建模上，我们采用多元线性回归拟合家长满意度，并将活动类型作为哑变量处理。模型的决定系数为 0.62，说明三类字段能解释大部分满意度差异。"
+      },
+      {
+        "no": 6,
+        "claim_id": "e455682b-d0b3-4591-9863-b93693874b9d",
+        "model_type": "method",
+        "text": "参与时长与满意度显著正相关，是否控制了学生年级、家庭背景等混杂变量？",
+        "quote": "参与时长与满意度呈显著正相关，回归系数为 0.34，p 值小于 0.05",
+        "kind": "quote",
+        "scope": null,
+        "source": "实验在同一批数据上进行，未划分训练集与测试集。结果显示，参与时长与满意度呈显著正相关，回归系数为 0.34，p 值小于 0.05。"
+      },
+      {
+        "no": 7,
+        "claim_id": "b4915a0c-a614-4ec8-a789-02feaaa33a4d",
+        "model_type": "method",
+        "text": "仅凭当前数据就断言模型能有效预测家长满意度，是否做过跨校或留出集的外部验证？",
+        "quote": "本模型能够有效预测家长满意度",
+        "kind": "quote",
+        "scope": null,
+        "source": "本模型能够有效预测家长满意度，为学校管理者提供决策参考。后续将进一步引入更多学校的数据以验证模型的稳健性。"
+      },
+      {
+        "no": 8,
+        "claim_id": "034c1c72-4354-4daa-a7f3-072a2b8db978",
+        "model_type": "method",
+        "text": "稳健性验证被推到后续工作，那么当前结论的泛化边界如何界定？",
+        "quote": "后续将进一步引入更多学校的数据以验证模型的稳健性",
+        "kind": "quote",
+        "scope": null,
+        "source": "本模型能够有效预测家长满意度，为学校管理者提供决策参考。后续将进一步引入更多学校的数据以验证模型的稳健性。"
+      },
+      {
+        "no": 9,
+        "claim_id": "88eaa02f-c09e-4272-aa71-d39ac226cec0",
+        "model_type": "value",
+        "text": "与现有政策文本分析相比，本模型的增量价值究竟体现在哪个可操作的管理决策上？",
+        "quote": "现有研究多聚焦于政策文本分析，较少涉及日常管理数据的量化建模",
+        "kind": "quote",
+        "scope": null,
+        "source": "本研究针对中小学校内课后服务的管理效率问题，提出一套基于行为记录的评估模型。现有研究多聚焦于政策文本分析，较少涉及日常管理数据的量化建模。"
+      },
+      {
+        "no": 10,
+        "claim_id": "43f41d52-01c6-4387-84b6-58608625cd62",
+        "model_type": "method",
+        "text": "家长反馈评分作为因变量，其测量方式与信效度是否经过验证？",
+        "quote": "数据包含学生参与时长、活动类型与家长反馈评分三类字段",
+        "kind": "quote",
+        "scope": null,
+        "source": "我们采集了某市三所小学一学期的课后服务记录，共计 1240 条。数据包含学生参与时长、活动类型与家长反馈评分三类字段。"
+      },
+      {
+        "no": 11,
+        "claim_id": "534425c1-2c3d-4c94-a6e0-966267f01e10",
+        "model_type": "method",
+        "text": "活动类型作哑变量处理时，基准类别如何选取、是否存在多重共线性问题？",
+        "quote": "将活动类型作为哑变量处理",
+        "kind": "quote",
+        "scope": null,
+        "source": "在建模上，我们采用多元线性回归拟合家长满意度，并将活动类型作为哑变量处理。模型的决定系数为 0.62，说明三类字段能解释大部分满意度差异。"
+      },
+      {
+        "no": 12,
+        "claim_id": "6ff42d49-c108-470a-b946-5afac92e078b",
+        "model_type": "value",
+        "text": "所谓为管理者提供决策参考，具体对应哪一项可执行的管理动作或指标？",
+        "quote": "为学校管理者提供决策参考",
+        "kind": "quote",
+        "scope": null,
+        "source": "本模型能够有效预测家长满意度，为学校管理者提供决策参考。后续将进一步引入更多学校的数据以验证模型的稳健性。"
+      }
+    ]
+  },
+  "runsDetail": [
+    {
+      "runNo": 1,
+      "sessionId": "993bb96c-2558-4e66-a782-fcd341912e06",
+      "questions": 3,
+      "followups": 0,
+      "elapsedSec": 43.132,
+      "riskScore": {
+        "0": 81,
+        "1": 80,
+        "2": 50,
+        "3": null
+      },
+      "perfScore": {
+        "0": 30,
+        "1": 25,
+        "2": 30,
+        "3": null
+      }
+    },
+    {
+      "runNo": 2,
+      "sessionId": "2a1fce13-c4be-4ab3-bb6b-bd5a67ae3019",
+      "questions": 3,
+      "followups": 0,
+      "elapsedSec": 39.033,
+      "riskScore": {
+        "0": 81,
+        "1": 80,
+        "2": 50,
+        "3": null
+      },
+      "perfScore": {
+        "0": 25,
+        "1": 30,
+        "2": 20,
+        "3": null
+      }
+    }
+  ]
+}
