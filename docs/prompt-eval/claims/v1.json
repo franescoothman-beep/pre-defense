@@ -1,0 +1,97 @@
+{
+  "reps": 3,
+  "runs": [
+    {
+      "raw": "{\"claims\":[{\"type\":\"method\",\"text\":\"仅用三所小学一学期1240条记录，样本代表性和外部效度存疑，结论能否推广到其他学校或地区？\",\"block_idx\":3,\"quote\":\"我们采集了某市三所小学一学期的课后服务记录，共计 1240 条。\",\"risk\":4,\"dimension\":\"evidence\"},{\"type\":\"method\",\"text\":\"以家长反馈评分作为满意度因变量，可能存在社会赞许偏差与共同方法偏差，未说明评分来源与量表信效度。\",\"block_idx\":3,\"quote\":\"数据包含学生参与时长、活动类型与家长反馈评分三类字段。\",\"risk\":4,\"dimension\":\"evidence\"},{\"type\":\"method\",\"text\":\"将活动类型作为哑变量处理，但未说明类别数、参照组设定及是否检验多重共线性，回归设定细节不足。\",\"block_idx\":4,\"quote\":\"并将活动类型作为哑变量处理。\",\"risk\":3,\"dimension\":\"depth\"},{\"type\":\"method\",\"text\":\"决定系数0.62被解读为“解释大部分满意度差异”，存在过度解读；R²不等于因果解释力，且未报告调整R²、显著性检验与残差诊断。\",\"block_idx\":4,\"quote\":\"模型的决定系数为 0.62，说明三类字段能解释大部分满意度差异。\",\"risk\":5,\"dimension\":\"logic\"},{\"type\":\"method\",\"text\":\"仅用线性回归拟合满意度，未考虑学生/班级嵌套结构（多层模型）及参与时长的非线性效应，方法选择依据不足。\",\"block_idx\":4,\"quote\":\"在建模上，我们采用多元线性回归拟合家长满意度\",\"risk\":3,\"dimension\":\"depth\"},{\"type\":\"value\",\"text\":\"声称现有研究较少涉及日常管理数据量化建模，但未提供文献支撑，创新性论断缺乏证据。\",\"block_idx\":1,\"quote\":\"现有研究多聚焦于政策文本分析，较少涉及日常管理数据的量化建模。\",\"risk\":3,\"dimension\":\"evidence\"},{\"type\":\"value\",\"text\":\"研究定位为“管理效率”问题，但实际建模的是家长满意度，研究目标与测量指标之间存在概念错位。\",\"block_idx\":1,\"quote\":\"本研究针对中小学校内课后服务的管理效率问题，提出一套基于行为记录的评估模型。\",\"risk\":4,\"dimension\":\"logic\"},{\"type\":\"method\",\"text\":\"称“基于行为记录的评估模型”，但数据仅含参与时长、活动类型与家长评分，行为记录的界定与评估模型结构未交代。\",\"block_idx\":1,\"quote\":\"提出一套基于行为记录的评估模型\",\"risk\":3,\"dimension\":\"expression\"},{\"type\":\"method\",\"text\":\"未说明数据清洗、缺失值处理与异常值剔除流程，1240条记录的有效性无法判断。\",\"block_idx\":3,\"quote\":\"共计 1240 条。\",\"risk\":3,\"dimension\":\"depth\"},{\"type\":\"method\",\"text\":\"未讨论伦理审查与数据脱敏，涉及学生与家长数据的研究合规性缺失。\",\"block_idx\":3,\"quote\":\"数据包含学生参与时长、活动类型与家长反馈评分三类字段。\",\"risk\":2,\"dimension\":\"evidence\"}]}",
+      "tokens": 985,
+      "latencyMs": 4220,
+      "schemaOk": true,
+      "schemaError": null,
+      "n": 10,
+      "rawDimConfused": 0,
+      "nAbsence": 0,
+      "dims": [
+        "evidence",
+        "depth",
+        "logic",
+        "expression"
+      ],
+      "types": [
+        "method",
+        "value"
+      ],
+      "quote": {
+        "total": 10,
+        "hit": 10,
+        "inPlace": 10,
+        "neighbor": 0,
+        "fallback": 0,
+        "rate": 1
+      },
+      "violations": 0
+    },
+    {
+      "raw": "{\"claims\":[{\"type\":\"method\",\"text\":\"仅用三所小学一学期1240条记录，样本代表性和外部效度存疑，结论能否推广到其他学校或地区？\",\"block_idx\":3,\"quote\":\"我们采集了某市三所小学一学期的课后服务记录，共计 1240 条。\",\"risk\":4,\"dimension\":\"evidence\"},{\"type\":\"method\",\"text\":\"将活动类型作为哑变量处理，但未说明参照组设定、类别数量及共线性处理，回归系数的可解释性需追问。\",\"block_idx\":4,\"quote\":\"将活动类型作为哑变量处理\",\"risk\":3,\"dimension\":\"logic\"},{\"type\":\"method\",\"text\":\"R²=0.62 被表述为“解释大部分满意度差异”，但决定系数不等于因果解释力，且未报告调整R²、显著性检验与残差诊断。\",\"block_idx\":4,\"quote\":\"模型的决定系数为 0.62，说明三类字段能解释大部分满意度差异。\",\"risk\":4,\"dimension\":\"logic\"},{\"type\":\"method\",\"text\":\"家长反馈评分作为因变量，其测量方式、量表信效度与评分偏差（如社会赞许性）未交代。\",\"block_idx\":3,\"quote\":\"数据包含学生参与时长、活动类型与家长反馈评分三类字段。\",\"risk\":3,\"dimension\":\"evidence\"},{\"type\":\"value\",\"text\":\"研究声称填补“日常管理数据量化建模”空白，但仅用线性回归，方法创新性是否足以支撑该定位？\",\"block_idx\":1,\"quote\":\"现有研究多聚焦于政策文本分析，较少涉及日常管理数据的量化建模。\",\"risk\":3,\"dimension\":\"depth\"},{\"type\":\"method\",\"text\":\"参与时长与满意度可能存在非线性或内生关系（如时长由活动类型决定），直接线性拟合是否合理未讨论。\",\"block_idx\":4,\"quote\":\"我们采用多元线性回归拟合家长满意度\",\"risk\":3,\"dimension\":\"depth\"},{\"type\":\"engineering\",\"text\":\"“管理效率问题”在背景中被提出，但模型只拟合满意度，未涉及效率指标，研究目标与建模对象存在错位。\",\"block_idx\":1,\"quote\":\"本研究针对中小学校内课后服务的管理效率问题，提出一套基于行为记录的评估模型。\",\"risk\":4,\"dimension\":\"logic\"},{\"type\":\"method\",\"text\":\"1240条记录是否按学生/班级聚类，若存在嵌套结构，普通最小二乘回归的标准误可能被低估。\",\"block_idx\":3,\"quote\":\"共计 1240 条。\",\"risk\":3,\"dimension\":\"logic\"}]}",
+      "tokens": 865,
+      "latencyMs": 3301,
+      "schemaOk": true,
+      "schemaError": null,
+      "n": 8,
+      "rawDimConfused": 0,
+      "nAbsence": 0,
+      "dims": [
+        "evidence",
+        "logic",
+        "depth"
+      ],
+      "types": [
+        "method",
+        "value",
+        "engineering"
+      ],
+      "quote": {
+        "total": 8,
+        "hit": 8,
+        "inPlace": 8,
+        "neighbor": 0,
+        "fallback": 0,
+        "rate": 1
+      },
+      "violations": 0
+    },
+    {
+      "raw": "{\"claims\":[{\"type\":\"method\",\"text\":\"仅用三所小学一学期1240条记录，样本代表性和外部效度存疑，能否支撑面向中小学的普适性评估模型？\",\"block_idx\":3,\"quote\":\"我们采集了某市三所小学一学期的课后服务记录，共计 1240 条。\",\"risk\":4,\"dimension\":\"evidence\"},{\"type\":\"method\",\"text\":\"以家长反馈评分作为满意度因变量，可能存在社会赞许偏差与共同方法偏差，未说明评分来源与采集方式。\",\"block_idx\":3,\"quote\":\"数据包含学生参与时长、活动类型与家长反馈评分三类字段。\",\"risk\":4,\"dimension\":\"logic\"},{\"type\":\"method\",\"text\":\"将活动类型作为哑变量处理，但未说明类别数、参照组设定与共线性检验，回归系数解释力存疑。\",\"block_idx\":4,\"quote\":\"并将活动类型作为哑变量处理\",\"risk\":3,\"dimension\":\"depth\"},{\"type\":\"value\",\"text\":\"R²=0.62 被解读为“解释大部分满意度差异”，存在过度解读，且未报告调整R²、显著性检验与残差诊断。\",\"block_idx\":4,\"quote\":\"模型的决定系数为 0.62，说明三类字段能解释大部分满意度差异。\",\"risk\":4,\"dimension\":\"logic\"},{\"type\":\"method\",\"text\":\"研究声称解决“管理效率问题”，但模型拟合的是家长满意度，满意度与效率之间的概念映射未加论证。\",\"block_idx\":1,\"quote\":\"本研究针对中小学校内课后服务的管理效率问题，提出一套基于行为记录的评估模型。\",\"risk\":4,\"dimension\":\"logic\"},{\"type\":\"method\",\"text\":\"“基于行为记录的评估模型”与实际的多元线性回归之间缺乏方法创新性说明，评估模型的具体结构与评估指标未定义。\",\"block_idx\":1,\"quote\":\"提出一套基于行为记录的评估模型\",\"risk\":3,\"dimension\":\"depth\"},{\"type\":\"evidence\",\"text\":\"“现有研究多聚焦于政策文本分析，较少涉及日常管理数据的量化建模”属文献判断，但未给出任何文献支撑。\",\"block_idx\":1,\"quote\":\"现有研究多聚焦于政策文本分析，较少涉及日常管理数据的量化建模。\",\"risk\":3,\"dimension\":\"evidence\"},{\"type\":\"method\",\"text\":\"参与时长、活动类型与满意度之间可能存在内生性与选择偏差（如学生自选活动），线性回归的因果解释不成立。\",\"block_idx\":4,\"quote\":\"我们采用多元线性回归拟合家长满意度\",\"risk\":4,\"dimension\":\"logic\"},{\"type\":\"method\",\"text\":\"未说明数据清洗、缺失值处理与异常值处理流程，1240条记录的有效性无法核验。\",\"block_idx\":3,\"quote\":\"共计 1240 条。\",\"risk\":3,\"dimension\":\"evidence\"},{\"type\":\"value\",\"text\":\"仅以满意度单一结果衡量课后服务成效，忽略参与度、学习效果等多维价值，评估结论的实践指导意义有限。\",\"block_idx\":4,\"quote\":\"采用多元线性回归拟合家长满意度\",\"risk\":3,\"dimension\":\"depth\"},{\"type\":\"expression\",\"text\":\"“大部分满意度差异”为模糊表述，未给出与基准模型或效应量的比较。\",\"block_idx\":4,\"quote\":\"说明三类字段能解释大部分满意度差异\",\"risk\":2,\"dimension\":\"expression\"}]}",
+      "tokens": 1029,
+      "latencyMs": 4380,
+      "schemaOk": false,
+      "schemaError": [
+        "claims.6.type: Invalid option: expected one of \"method\"|\"engineering\"|\"value\"",
+        "claims.10.type: Invalid option: expected one of \"method\"|\"engineering\"|\"value\""
+      ],
+      "n": 11,
+      "rawDimConfused": 0,
+      "nAbsence": 0,
+      "dims": [
+        "evidence",
+        "logic",
+        "depth",
+        "expression"
+      ],
+      "types": [
+        "method",
+        "value",
+        "evidence",
+        "expression"
+      ],
+      "quote": {
+        "total": 0,
+        "hit": 0,
+        "inPlace": 0,
+        "neighbor": 0,
+        "fallback": 0,
+        "rate": null
+      },
+      "violations": 0
+    }
+  ]
+}

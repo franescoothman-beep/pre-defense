@@ -1,0 +1,70 @@
+{
+  "reps": 3,
+  "runs": [
+    {
+      "raw": "{\"score\": 18, \"gaps\": [\"完全没有回答抽样标准：三所小学是按什么标准选的（区域、办学水平、城乡、生源结构）一字未提。\", \"没有回应代表性：1240 条来自三所小学一学期，无法说明能覆盖全市不同层次学校，推广结论缺乏依据。\", \"答非所问，用回归 R²=0.62 来替代抽样代表性论证，R² 与样本能否代表全市是两个问题。\", \"未说明三所学校的层次分布与全市学校总体结构的对应关系，也未给出任何抽样框或分层依据。\", \"0.62 的决定系数本身也说明约 38% 的变异未被解释，却直接称“模型有效”，对数字的解读过于宽松。\"], \"locators\": [{\"kind\": \"quote\", \"block_idx\": 0, \"quote\": \"我们采集了某市三所小学一学期的课后服务记录，共计 1240 条。\"}, {\"kind\": \"quote\", \"block_idx\": 0, \"quote\": \"数据包含学生参与时长、活动类型与家长反馈评分三类字段。\"}], \"followup\": null}",
+      "tokens": 616,
+      "latencyMs": 1831,
+      "schemaOk": false,
+      "schemaError": [
+        "score: Too big: expected number to be <=5"
+      ],
+      "score": 18,
+      "score0to100": true,
+      "nGaps": 5,
+      "quote": {
+        "total": 2,
+        "hit": 2,
+        "inPlace": 0,
+        "neighbor": 0,
+        "fallback": 2,
+        "rate": 1
+      },
+      "followup": null
+    },
+    {
+      "raw": "{\"score\": 18, \"gaps\": [\"完全没有回答抽样标准：三所小学是按什么标准选的，只字未提\", \"没有回应代表性：未说明三所学校在层次、区域、生源上的分布，无法支撑对全市乃至全省的推广\", \"答非所问，用回归结果（R²=0.62）替代抽样代表性论证，混淆了模型拟合度与样本外推能力\", \"未说明1240条数据的抽样方式与结构（每校多少条、是否随机），数据可靠性无法评估\", \"R²=0.62 被直接表述为“模型有效”，未给出显著性检验、变量设定与共线性等基本统计信息\"], \"locators\": [{\"kind\": \"quote\", \"block_idx\": 0, \"quote\": \"我们采集了某市三所小学一学期的课后服务记录，共计 1240 条。\"}], \"followup\": null}",
+      "tokens": 564,
+      "latencyMs": 1847,
+      "schemaOk": false,
+      "schemaError": [
+        "score: Too big: expected number to be <=5"
+      ],
+      "score": 18,
+      "score0to100": true,
+      "nGaps": 5,
+      "quote": {
+        "total": 1,
+        "hit": 1,
+        "inPlace": 0,
+        "neighbor": 0,
+        "fallback": 1,
+        "rate": 1
+      },
+      "followup": null
+    },
+    {
+      "raw": "{\"score\": 18, \"gaps\": [\"完全没有回答抽样标准：三所小学是按什么标准选的，一个字没提\", \"没有回应代表性：能否代表全市不同层次学校，直接绕开\", \"答非所问，把样本代表性问题偷换成模型拟合度（R²=0.62）\", \"1240 条数据未说明三校如何分布，单校平均约 413 条，无法判断是否均衡\", \"R²=0.62 本身也不能证明模型有效，更与样本能否外推无关\", \"未说明三校在城乡、办学水平、生源结构上的差异，无法支撑向全市乃至全省推广\"], \"locators\": [{\"kind\": \"quote\", \"block_idx\": 1, \"quote\": \"我们采集了某市三所小学一学期的课后服务记录，共计 1240 条。\"}, {\"kind\": \"quote\", \"block_idx\": 1, \"quote\": \"我们采集了三所小学一学期共 1240 条记录，用了多元线性回归，决定系数 0.62，说明模型是有效的，家长满意度可以比较好地被预测。\"}], \"followup\": null}",
+      "tokens": 617,
+      "latencyMs": 1936,
+      "schemaOk": false,
+      "schemaError": [
+        "score: Too big: expected number to be <=5",
+        "locators.1.quote: Too big: expected string to have <=60 characters",
+        "locators.1.quote: quote 最多 60 字"
+      ],
+      "score": 18,
+      "score0to100": true,
+      "nGaps": 6,
+      "quote": {
+        "total": 2,
+        "hit": 1,
+        "inPlace": 0,
+        "neighbor": 1,
+        "fallback": 0,
+        "rate": 0.5
+      },
+      "followup": null
+    }
+  ]
+}

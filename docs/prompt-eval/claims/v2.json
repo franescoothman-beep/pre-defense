@@ -1,0 +1,90 @@
+{
+  "reps": 3,
+  "runs": [
+    {
+      "raw": "{\"claims\": [{\"type\": \"method\", \"text\": \"仅三所小学一学期1240条记录，样本代表性如何支撑对全市乃至更大范围课后服务管理的推论？\", \"block_idx\": 3, \"kind\": \"quote\", \"quote\": \"我们采集了某市三所小学一学期的课后服务记录，共计 1240 条\", \"risk\": 4, \"dimension\": \"evidence\"}, {\"type\": \"method\", \"text\": \"家长反馈评分作为因变量，其测量方式、量表信效度与主观偏差如何控制？\", \"block_idx\": 3, \"kind\": \"quote\", \"quote\": \"数据包含学生参与时长、活动类型与家长反馈评分三类字段\", \"risk\": 4, \"dimension\": \"evidence\"}, {\"type\": \"method\", \"text\": \"只用三个字段拟合满意度，是否遗漏教师质量、班级规模等关键混杂变量，导致遗漏变量偏误？\", \"block_idx\": 4, \"kind\": \"quote\", \"quote\": \"我们采用多元线性回归拟合家长满意度，并将活动类型作为哑变量处理\", \"risk\": 5, \"dimension\": \"logic\"}, {\"type\": \"method\", \"text\": \"R²=0.62 被解读为能解释大部分差异，但线性回归的因果解释力与拟合优度是两回事，是否混淆了相关与因果？\", \"block_idx\": 4, \"kind\": \"quote\", \"quote\": \"模型的决定系数为 0.62，说明三类字段能解释大部分满意度差异\", \"risk\": 5, \"dimension\": \"logic\"}, {\"type\": \"method\", \"text\": \"回归模型是否做了多重共线性、残差正态性与异方差检验，有无交叉验证或留出集评估？\", \"block_idx\": 4, \"kind\": \"absence\", \"quote\": \"\", \"scope\": \"§2 数据与方法（块3–4）\", \"risk\": 4, \"dimension\": \"evidence\"}, {\"type\": \"value\", \"text\": \"与既有政策文本分析相比，本研究的增量贡献仅是换用管理数据做回归，创新点是否足够？\", \"block_idx\": 1, \"kind\": \"quote\", \"quote\": \"现有研究多聚焦于政策文本分析，较少涉及日常管理数据的量化建模\", \"risk\": 3, \"dimension\": \"depth\"}, {\"type\": \"value\", \"text\": \"所谓管理效率问题与满意度建模之间的逻辑链条如何闭合，满意度高就等于管理效率高吗？\", \"block_idx\": 1, \"kind\": \"quote\", \"quote\": \"本研究针对中小学校内课后服务的管理效率问题，提出一套基于行为记录的评估模型\", \"risk\": 4, \"dimension\": \"logic\"}, {\"type\": \"engineering\", \"text\": \"1240条记录中缺失值、异常时长与重复记录如何处理，数据清洗流程是否可复现？\", \"block_idx\": 3, \"kind\": \"absence\", \"quote\": \"\", \"scope\": \"§2 数据与方法（块3–4）\", \"risk\": 3, \"dimension\": \"depth\"}]}",
+      "tokens": 1548,
+      "latencyMs": 3664,
+      "schemaOk": true,
+      "schemaError": null,
+      "n": 8,
+      "rawDimConfused": 0,
+      "nAbsence": 2,
+      "dims": [
+        "evidence",
+        "logic",
+        "depth"
+      ],
+      "types": [
+        "method",
+        "value",
+        "engineering"
+      ],
+      "quote": {
+        "total": 6,
+        "hit": 6,
+        "inPlace": 6,
+        "neighbor": 0,
+        "fallback": 0,
+        "rate": 1
+      },
+      "violations": 0
+    },
+    {
+      "raw": "{\"claims\": [{\"type\": \"method\", \"text\": \"仅三所小学一学期1240条记录，样本代表性如何支撑对全市乃至更大范围课后服务管理的结论？\", \"block_idx\": 3, \"kind\": \"quote\", \"quote\": \"我们采集了某市三所小学一学期的课后服务记录，共计 1240 条\", \"risk\": 4, \"dimension\": \"evidence\"}, {\"type\": \"method\", \"text\": \"家长反馈评分作为因变量，其测量方式、量表信度与是否存在自评偏差如何控制？\", \"block_idx\": 3, \"kind\": \"quote\", \"quote\": \"数据包含学生参与时长、活动类型与家长反馈评分三类字段\", \"risk\": 4, \"dimension\": \"evidence\"}, {\"type\": \"method\", \"text\": \"把活动类型设为哑变量后，是否检验了共线性与残差正态性，回归假设是否成立？\", \"block_idx\": 4, \"kind\": \"quote\", \"quote\": \"将活动类型作为哑变量处理\", \"risk\": 4, \"dimension\": \"depth\"}, {\"type\": \"method\", \"text\": \"R²=0.62就断言能解释大部分满意度差异，是否混淆了拟合优度与因果解释力？\", \"block_idx\": 4, \"kind\": \"quote\", \"quote\": \"模型的决定系数为 0.62，说明三类字段能解释大部分满意度差异\", \"risk\": 5, \"dimension\": \"logic\"}, {\"type\": \"method\", \"text\": \"仅用参与时长、活动类型、反馈评分三个字段建模，是否遗漏了教师水平、班级规模等关键混杂变量？\", \"block_idx\": 4, \"kind\": \"absence\", \"quote\": \"\", \"scope\": \"§2 数据与方法（块3–4）\", \"risk\": 4, \"dimension\": \"evidence\"}, {\"type\": \"method\", \"text\": \"模型是否设置了基线或对照模型（如仅截距模型、随机森林等），以证明线性回归的必要性？\", \"block_idx\": 4, \"kind\": \"absence\", \"quote\": \"\", \"scope\": \"§2 数据与方法（块3–4）\", \"risk\": 3, \"dimension\": \"evidence\"}, {\"type\": \"value\", \"text\": \"声称现有研究少涉及日常管理数据量化建模，这一判断有何文献依据，是否低估了已有教育数据挖掘工作？\", \"block_idx\": 1, \"kind\": \"quote\", \"quote\": \"现有研究多聚焦于政策文本分析，较少涉及日常管理数据的量化建模\", \"risk\": 3, \"dimension\": \"evidence\"}, {\"type\": \"value\", \"text\": \"所谓管理效率问题具体指什么，评估模型输出的满意度评分如何转化为可执行的管理决策？\", \"block_idx\": 1, \"kind\": \"quote\", \"quote\": \"本研究针对中小学校内课后服务的管理效率问题，提出一套基于行为记录的评估模型\", \"risk\": 4, \"dimension\": \"logic\"}, {\"type\": \"method\", \"text\": \"1240条记录是否按学生聚类，同一学生多次记录导致的非独立性如何处理？\", \"block_idx\": 3, \"kind\": \"absence\", \"quote\": \"\", \"scope\": \"§2 数据与方法（块3–4）\", \"risk\": 3, \"dimension\": \"depth\"}, {\"type\": \"method\", \"text\": \"模型是否做了交叉验证或留出测试集，0.62是否为样本内R²而存在过拟合？\", \"block_idx\": 4, \"kind\": \"absence\", \"quote\": \"\", \"scope\": \"§2 数据与方法（块4）\", \"risk\": 4, \"dimension\": \"evidence\"}]}",
+      "tokens": 1687,
+      "latencyMs": 4263,
+      "schemaOk": true,
+      "schemaError": null,
+      "n": 10,
+      "rawDimConfused": 0,
+      "nAbsence": 4,
+      "dims": [
+        "evidence",
+        "depth",
+        "logic"
+      ],
+      "types": [
+        "method",
+        "value"
+      ],
+      "quote": {
+        "total": 6,
+        "hit": 6,
+        "inPlace": 6,
+        "neighbor": 0,
+        "fallback": 0,
+        "rate": 1
+      },
+      "violations": 0
+    },
+    {
+      "raw": "{\"claims\": [{\"type\": \"method\", \"text\": \"仅三所小学一学期1240条记录，样本代表性如何支撑对全市乃至更大范围课后服务管理的结论？\", \"block_idx\": 3, \"kind\": \"quote\", \"quote\": \"我们采集了某市三所小学一学期的课后服务记录，共计 1240 条\", \"risk\": 4, \"dimension\": \"evidence\"}, {\"type\": \"method\", \"text\": \"家长反馈评分作为因变量，其测量方式、量表信效度与评分者偏差如何控制？\", \"block_idx\": 3, \"kind\": \"quote\", \"quote\": \"数据包含学生参与时长、活动类型与家长反馈评分三类字段\", \"risk\": 4, \"dimension\": \"evidence\"}, {\"type\": \"method\", \"text\": \"只用三个字段做线性回归，是否遗漏了家庭背景、教师质量等关键混杂变量，导致系数有偏？\", \"block_idx\": 4, \"kind\": \"quote\", \"quote\": \"我们采用多元线性回归拟合家长满意度，并将活动类型作为哑变量处理\", \"risk\": 5, \"dimension\": \"logic\"}, {\"type\": \"method\", \"text\": \"R²=0.62 被解读为能解释大部分差异，但线性回归的因果解释力与拟合优度是两回事，如何论证因果而非相关？\", \"block_idx\": 4, \"kind\": \"quote\", \"quote\": \"模型的决定系数为 0.62，说明三类字段能解释大部分满意度差异\", \"risk\": 5, \"dimension\": \"logic\"}, {\"type\": \"method\", \"text\": \"是否设置了基线模型或对照方法，以证明多元线性回归优于简单均值或单变量模型？\", \"block_idx\": 4, \"kind\": \"absence\", \"quote\": \"\", \"scope\": \"§2 数据与方法（块3–4）\", \"risk\": 4, \"dimension\": \"evidence\"}, {\"type\": \"method\", \"text\": \"回归是否做了多重共线性、残差正态性与异方差检验，系数显著性如何？\", \"block_idx\": 4, \"kind\": \"absence\", \"quote\": \"\", \"scope\": \"§2 数据与方法（块3–4）\", \"risk\": 4, \"dimension\": \"depth\"}, {\"type\": \"value\", \"text\": \"所谓评估模型与现有政策文本分析相比，除数据源不同外，方法学上的增量创新在哪里？\", \"block_idx\": 1, \"kind\": \"quote\", \"quote\": \"现有研究多聚焦于政策文本分析，较少涉及日常管理数据的量化建模\", \"risk\": 3, \"dimension\": \"depth\"}, {\"type\": \"value\", \"text\": \"该模型最终服务于谁的管理决策，输出结果如何转化为可操作的干预建议？\", \"block_idx\": 1, \"kind\": \"quote\", \"quote\": \"本研究针对中小学校内课后服务的管理效率问题，提出一套基于行为记录的评估模型\", \"risk\": 3, \"dimension\": \"logic\"}]}",
+      "tokens": 1536,
+      "latencyMs": 3848,
+      "schemaOk": true,
+      "schemaError": null,
+      "n": 8,
+      "rawDimConfused": 0,
+      "nAbsence": 2,
+      "dims": [
+        "evidence",
+        "logic",
+        "depth"
+      ],
+      "types": [
+        "method",
+        "value"
+      ],
+      "quote": {
+        "total": 6,
+        "hit": 6,
+        "inPlace": 6,
+        "neighbor": 0,
+        "fallback": 0,
+        "rate": 1
+      },
+      "violations": 0
+    }
+  ]
+}

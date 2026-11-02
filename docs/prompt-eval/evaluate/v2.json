@@ -1,0 +1,62 @@
+{
+  "reps": 3,
+  "runs": [
+    {
+      "raw": "{\"score\": 1, \"gaps\": [\"完全没有回答三所小学的选取标准\", \"没有说明三校能否覆盖全市不同层次学校\", \"用回归R²回应代表性问题，答非所问\"], \"locators\": [{\"kind\": \"quote\", \"block_idx\": 1, \"quote\": \"我们采集了某市三所小学一学期的课后服务记录，共计 1240 条。\"}, {\"kind\": \"absence\", \"block_idx\": 1, \"scope\": \"全文（仅一段）：三所小学的选取标准、学校层次分布均未出现\"}], \"followup\": null}",
+      "tokens": 1321,
+      "latencyMs": 1208,
+      "schemaOk": true,
+      "schemaError": null,
+      "score": 1,
+      "score0to100": false,
+      "nGaps": 3,
+      "quote": {
+        "total": 1,
+        "hit": 1,
+        "inPlace": 0,
+        "neighbor": 1,
+        "fallback": 0,
+        "rate": 1
+      },
+      "followup": null
+    },
+    {
+      "raw": "{\"score\": 1, \"gaps\": [\"完全没回答三所小学的选取标准，也没说明能否代表全市不同层次学校\", \"用回归决定系数0.62回应代表性问题，答的是另一个问题\"], \"locators\": [{\"kind\": \"quote\", \"block_idx\": 0, \"quote\": \"我们采集了某市三所小学一学期的课后服务记录，共计 1240 条。\"}, {\"kind\": \"absence\", \"block_idx\": 0, \"scope\": \"全文（仅一段）：未见三所小学的选取标准、学校层次分布或抽样说明\"}], \"followup\": null}",
+      "tokens": 1323,
+      "latencyMs": 1334,
+      "schemaOk": true,
+      "schemaError": null,
+      "score": 1,
+      "score0to100": false,
+      "nGaps": 2,
+      "quote": {
+        "total": 1,
+        "hit": 1,
+        "inPlace": 0,
+        "neighbor": 0,
+        "fallback": 1,
+        "rate": 1
+      },
+      "followup": null
+    },
+    {
+      "raw": "{\"score\": 2, \"gaps\": [\"没有回答三所小学的选取标准，也没说明能否覆盖全市不同层次学校\", \"用回归R²=0.62回应代表性问题，答的是另一个问题\"], \"locators\": [{\"kind\": \"quote\", \"block_idx\": 1, \"quote\": \"我们采集了某市三所小学一学期的课后服务记录，共计 1240 条。\"}, {\"kind\": \"absence\", \"block_idx\": 1, \"scope\": \"全文（仅一段）：未见抽样标准、学校层次分布或代表性论证\"}], \"followup\": null}",
+      "tokens": 1319,
+      "latencyMs": 1279,
+      "schemaOk": true,
+      "schemaError": null,
+      "score": 2,
+      "score0to100": false,
+      "nGaps": 2,
+      "quote": {
+        "total": 1,
+        "hit": 1,
+        "inPlace": 0,
+        "neighbor": 1,
+        "fallback": 0,
+        "rate": 1
+      },
+      "followup": null
+    }
+  ]
+}
