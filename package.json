@@ -14,7 +14,8 @@
     "test": "node --import ./tests/hooks.mjs --test \"tests/*.test.ts\"",
     "eval": "node scripts/eval.mjs",
     "test:fixtures": "node scripts/test-fixtures.mjs",
-    "probe:mobile": "node scripts/probe-mobile.mjs"
+    "probe:mobile": "node scripts/probe-mobile.mjs",
+    "dryrun": "node scripts/dry-run-shoot.mjs"
   },
   "dependencies": {
     "mammoth": "^1.13.0",
