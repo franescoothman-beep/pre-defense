@@ -13,7 +13,8 @@
     "start": "next start",
     "test": "node --import ./tests/hooks.mjs --test \"tests/*.test.ts\"",
     "eval": "node scripts/eval.mjs",
-    "test:fixtures": "node scripts/test-fixtures.mjs"
+    "test:fixtures": "node scripts/test-fixtures.mjs",
+    "probe:mobile": "node scripts/probe-mobile.mjs"
   },
   "dependencies": {
     "mammoth": "^1.13.0",
