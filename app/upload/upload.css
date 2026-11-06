@@ -27,9 +27,9 @@
 }
 
 .shell {
-  max-width: 880px;
+  max-width: var(--container-narrow);
   margin: 0 auto;
-  padding: 40px 20px 64px;
+  padding: 48px 24px 72px;
 }
 
 .wordmark {
@@ -56,8 +56,9 @@
 
 .frame {
   background: var(--paper);
-  border: 1px solid var(--line-2);
-  margin-top: 28px;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-1);
+  margin-top: 32px;
 }
 
 .drop {
@@ -65,7 +66,11 @@
   text-align: center;
   border: 1px dashed var(--line-2);
   margin: 20px;
-  transition: border-color 180ms, background-color 180ms;
+}
+
+.drop:hover {
+  border-color: var(--muted);
+  background: var(--paper-3);
 }
 
 .drop.hot {
@@ -98,7 +103,8 @@
  * 只用 opacity 会让文字发虚、反而更像"加载中"，所以配合 default 光标与虚线边框变灰。
  * 本文件不新增任何动效（4 处清单已用 3 处）。
  */
-.drop.disabled {
+.drop.disabled,
+.drop.disabled:hover {
   opacity: 0.55;
   cursor: not-allowed;
   border-color: var(--line);
@@ -298,16 +304,28 @@
 }
 
 .list {
+  display: grid;
+  gap: var(--gap-row);
   border-top: 1px solid var(--line);
+  background: var(--line);
+}
+
+.list .hd {
+  background: var(--paper);
 }
 
 .list .row {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   align-items: baseline;
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--line);
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  background: var(--paper);
   font-size: 13.5px;
+}
+
+.list .row:hover {
+  background: var(--paper-3);
 }
 
 .list .row .nm {

@@ -8,9 +8,9 @@
  */
 
 .chat-shell {
-  max-width: 1080px;
+  max-width: var(--container);
   margin: 0 auto;
-  padding: 0 0 64px;
+  padding: 0 0 72px;
 }
 
 /* 顶部信息带：等宽 11，与上传页 / 卡片页同款 */
@@ -49,14 +49,16 @@
  */
 
 .chat-body {
-  padding: 26px 18px 0;
+  padding: 40px 24px 0;
 }
 
 /* 一条评委发言 */
 .turn {
   border: 1px solid var(--line);
-  background: var(--paper);
-  padding: 18px 20px 16px;
+  border-left: 3px solid var(--red-line);
+  background: var(--paper-2);
+  box-shadow: var(--shadow-1);
+  padding: 16px 20px 16px 17px;
 }
 
 /* 发言头部：姓名（衬线 17）+ 维度（等宽 11） */
@@ -125,8 +127,9 @@
 /* 错误条：直接用服务端给的 fallback 文案（不要再翻译一次） */
 .turn-error {
   border: 1px solid var(--red-line);
-  background: var(--red-soft);
-  padding: 14px 18px;
+  border-left: 3px solid var(--red-line);
+  background: var(--paper-2);
+  padding: 14px 16px;
   font-size: 13.5px;
   line-height: 1.7;
   color: var(--red-deep);
@@ -150,6 +153,7 @@
 .chat-placeholder {
   border: 1px solid var(--line);
   background: var(--paper);
+  box-shadow: var(--shadow-1);
   padding: 22px 20px;
 }
 

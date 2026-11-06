@@ -14,7 +14,7 @@
  */
 
 .bench {
-  border-bottom: 1px solid var(--line-2);
+  border-bottom: 1px solid var(--line);
   background: var(--paper-2);
 }
 
@@ -22,7 +22,7 @@
 .bench-seats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  max-width: 1080px;
+  max-width: var(--container);
   margin: 0 auto;
 }
 
@@ -42,6 +42,12 @@
 /* 已问过的座位整块降透明度（一眼看出"这个人问完了"） */
 .seat.is-past {
   opacity: 0.46;
+}
+
+/* 当前说话者：白纸底 + 微阴影抬起（不动 opacity/位移），与 past 降透明度互斥 */
+.seat.is-current {
+  background: var(--paper);
+  box-shadow: var(--shadow-1);
 }
 
 /* 当前说话者：朱红下划线 */

@@ -15,9 +15,9 @@
  */
 
 .report-shell {
-  max-width: 1080px;
+  max-width: var(--container);
   margin: 0 auto;
-  padding: 0 18px 72px;
+  padding: 0 24px 80px;
 }
 
 /* ── 深墨封面带：全站唯一的深色块，报告的身份 ── */
@@ -28,9 +28,9 @@
 }
 
 .report-cover-inner {
-  max-width: 1080px;
+  max-width: var(--container);
   margin: 0 auto;
-  padding: 30px 18px 26px;
+  padding: 36px 24px 30px;
 }
 
 .report-kicker {
@@ -39,7 +39,7 @@
   letter-spacing: 0.22em;
   color: var(--red-line);
   display: block;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .report-title {
@@ -70,8 +70,8 @@
   border: 1px solid var(--line);
   border-left: 2px solid var(--red);
   background: var(--paper-2);
-  padding: 10px 14px;
-  margin: 18px 0 16px;
+  padding: 12px 16px;
+  margin: 20px 0 18px;
   font-size: 13.5px;
   line-height: 1.7;
   color: var(--ink-2);
@@ -91,7 +91,7 @@
 .report-cols {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 18px;
+  gap: 24px;
   align-items: start;
 }
 
@@ -104,8 +104,9 @@
   font-size: 17px;
   font-weight: 600;
   color: var(--ink);
-  margin: 18px 0 10px;
-  padding-bottom: 7px;
+  margin: 20px 0 12px;
+  padding: 10px 0;
+  border-top: 2px solid var(--dim-logic);
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: baseline;
@@ -125,8 +126,9 @@
 .risk-card {
   border: 1px solid var(--line);
   background: var(--paper);
-  padding: 13px 15px;
-  margin-bottom: 10px;
+  box-shadow: var(--shadow-1);
+  padding: var(--pad-card);
+  margin-bottom: 16px;
 }
 
 .risk-card-head {
@@ -252,8 +254,9 @@
 .perf-card {
   border: 1px solid var(--line);
   background: var(--paper);
-  padding: 13px 15px;
-  margin-bottom: 10px;
+  box-shadow: var(--shadow-1);
+  padding: var(--pad-card);
+  margin-bottom: 16px;
 }
 
 .perf-head {
@@ -354,9 +357,10 @@
 /* ── 被引用的原文（点开引用后就地展开） ── */
 .report-opened {
   border: 1px solid var(--red-line);
+  border-left: 3px solid var(--red-line);
   background: var(--paper-2);
-  padding: 13px 15px;
-  margin: 18px 0 0;
+  padding: var(--pad-card);
+  margin: 20px 0 0;
 }
 
 .opened-head {
@@ -463,8 +467,9 @@
 .high-item {
   border: 1px solid var(--line);
   background: var(--paper);
-  padding: 13px 15px;
-  margin-bottom: 10px;
+  box-shadow: var(--shadow-1);
+  padding: var(--pad-card);
+  margin-bottom: 16px;
 }
 
 .high-head {
@@ -481,10 +486,10 @@
 }
 
 .high-rank {
-  font-family: var(--font-serif);
+  font-family: var(--font-mono);
   font-size: 17px;
+  font-weight: 700;
   color: var(--red);
-  font-weight: 600;
 }
 
 .high-dim {
@@ -559,7 +564,8 @@
   border: 1px solid var(--line);
   border-top: 2px solid var(--red);
   background: var(--paper);
-  padding: 15px 17px;
+  box-shadow: var(--shadow-1);
+  padding: 16px 18px;
   white-space: pre-wrap;
 }
 
@@ -572,8 +578,9 @@
   border: 1px solid var(--line);
   border-left: 2px solid var(--line-2);
   background: var(--paper);
-  padding: 12px 15px;
-  margin-bottom: 9px;
+  box-shadow: var(--shadow-1);
+  padding: 14px 16px;
+  margin-bottom: 12px;
 }
 
 .tr-head {
@@ -648,8 +655,9 @@
 .report-placeholder {
   border: 1px solid var(--line);
   background: var(--paper);
+  box-shadow: var(--shadow-1);
   padding: 22px 20px;
-  margin-top: 26px;
+  margin-top: 28px;
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.06em;
@@ -705,7 +713,8 @@
 
 .stamp-num {
   font-family: var(--font-mono);
-  font-size: 42px;
+  font-size: 62px;
+  font-weight: 700;
   line-height: 1;
   color: var(--red-line);
   font-variant-numeric: tabular-nums;
@@ -726,8 +735,9 @@
   gap: 0;
   border: 1px solid var(--line);
   background: var(--paper);
-  margin: 18px 0 0;
-  padding: 10px 12px;
+  box-shadow: var(--shadow-1);
+  margin: 20px 0 0;
+  padding: 12px 14px;
 }
 
 .trace-lb {
@@ -803,6 +813,7 @@
   table-layout: fixed;
   background: var(--paper);
   border: 1px solid var(--line);
+  box-shadow: var(--shadow-1);
 }
 
 .board-t th,
@@ -818,7 +829,7 @@
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.08em;
-  color: var(--ink-2);
+  color: var(--muted);
   background: var(--paper-2);
   padding: 8px 10px;
   white-space: nowrap;
@@ -953,9 +964,10 @@
 
 .big-num {
   font-family: var(--font-mono);
-  font-size: 42px;
+  font-size: 62px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
 
 .big-num.is-high { color: var(--red); }
@@ -988,6 +1000,7 @@
 .delta-rows {
   border: 1px solid var(--line);
   background: var(--paper);
+  box-shadow: var(--shadow-1);
 }
 
 .delta-row {
@@ -1035,7 +1048,8 @@
   margin-top: 12px;
   border: 1px solid var(--line);
   background: var(--paper);
-  padding: 12px 14px;
+  box-shadow: var(--shadow-1);
+  padding: 14px 16px;
 }
 
 .cd-sum {
@@ -1115,7 +1129,7 @@
   background: var(--ink);
   color: var(--paper-3);
   border: 1px solid var(--ink);
-  padding: 13px 15px;
+  padding: 14px 16px;
   font-family: var(--font-serif);
   font-size: 17px;
   font-weight: 600;
