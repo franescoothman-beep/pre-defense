@@ -222,9 +222,7 @@ export default function UploadPage() {
 
       <main className="shell">
         <div className="hero-badge">STAGE 01 · 材料接入</div>
-        <h1 className="wordmark">
-          预演<span className="dot">。</span>
-        </h1>
+        <h1 className="wordmark">预演</h1>
         <p className="lede">
           先把你准备好的材料交给质询台。系统会逐页取文本、切成可溯源的文本块——
           后面三位评委说的每一句质疑，都要能点回这里的某一块原文。

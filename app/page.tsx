@@ -30,9 +30,7 @@ export default function Home() {
       <main className="wrap">
         <section className="hero">
           <div className="hero-badge">PHASE 01 · 答辩准备</div>
-          <h1 className="wordmark">
-            预演<span className="dot">。</span>
-          </h1>
+          <h1 className="wordmark">预演</h1>
           <p className="tagline">
             正式答辩只有一次机会，但你可以先被问倒十次。上传你的
             <b>论文、项目文档或简历</b>，三位不同视角的 AI 评委轮番提问并追问，

@@ -227,9 +227,7 @@ export default function DocPage({ params }: { params: Promise<{ id: string }> })
 
       <main className="shell">
         <div className="hero-badge">CHECKPOINT · 漏洞透视</div>
-        <h1 className="wordmark">
-          质疑点<span className="dot">。</span>
-        </h1>
+        <h1 className="wordmark">质疑点</h1>
         <p className="lede">
           每条质疑都带着一个锚点：<b>能引的，标出原文那一句并逐字机检</b>；
           <b>不能引的（比如“你缺对照组”），显式标成“缺失”并写明查过哪些章节</b>。
