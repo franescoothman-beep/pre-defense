@@ -234,7 +234,8 @@ export default function DocPage({ params }: { params: Promise<{ id: string }> })
           后者不可点开——因为它本来就没有原文可点。
         </p>
 
-        {doc && (
+        {/* 抽取前的空态才需要这一行参数；抽完之后同样的数字收进工具栏摘要，避免说两遍 */}
+        {doc && claims.length === 0 && (
           <div className="stat">
             <span>
               材料 <b>{doc.name}</b>
@@ -274,53 +275,66 @@ export default function DocPage({ params }: { params: Promise<{ id: string }> })
 
         {claims.length > 0 && (
           <>
-            {/* ── 开场入口：闭环的起点。没有它，后面所有页面都只是"只能看不能走" ── */}
-            <section className="launch" aria-label="开始质询">
-              <div className="launch-hd">
-                <h2>开始质询</h2>
-                <p>
-                  三位评委会各挑一条最危险的质疑点发问
-                  {reviseFrom ? '；这是「改后材料重审」，报告里会显示与上一场的风险分差和质疑点增删。' : '。'}
-                </p>
+            {/* ── 控制台工具栏：状态摘要 + 操作组。原先「开始质询」卡片与孤立的
+                   「重新抽取」各自占一段，纵向吃掉近 200px；合并后一条即止。 ── */}
+            <section className="toolbar" aria-label="开始质询">
+              <div className="toolbar-status">
+                <span className="toolbar-doc">{doc?.name ?? '材料'}</span>
+                <span className="dot-sep" aria-hidden="true" />
+                <span>
+                  <b>{claims.length}</b> 条高危质疑
+                </span>
+                <span className="dot-sep" aria-hidden="true" />
+                <span className="is-hit">
+                  <b>{quoteHit}</b> 条命中
+                </span>
+                <span className="dot-sep" aria-hidden="true" />
+                <span className={absenceTotal > 0 ? 'is-missing' : undefined}>
+                  <b>{absenceTotal}</b> 条缺失
+                </span>
               </div>
-              <div className="launch-btns">
+
+              <div className="toolbar-actions">
+                <button className="btn btn-ghost" onClick={extract} disabled={busy}>
+                  {busy ? '正在重抽…' : '重新抽取'}
+                </button>
                 <button className="btn" onClick={() => startSession('quick')} disabled={starting !== null}>
-                  {starting === 'quick' ? '正在排席位…' : '开始质询 · quick（3 问出报告）'}
+                  {starting === 'quick' ? '正在排席位…' : '快速质询'}
                 </button>
                 <button
-                  className="btn btn-ghost"
+                  className="btn btn-outline"
                   onClick={() => startSession('full')}
                   disabled={starting !== null}
                 >
-                  {starting === 'full' ? '正在排席位…' : '完整评审 · full（最多 15 轮）'}
+                  {starting === 'full' ? '正在排席位…' : '完整评审'}
                 </button>
                 {reviseFrom ? (
                   <button className="btn" onClick={() => startSession('revise')} disabled={starting !== null}>
-                    {starting === 'revise' ? '正在排席位…' : '用改后材料重审 · revise'}
+                    {starting === 'revise' ? '正在排席位…' : '用改后材料重审'}
                   </button>
                 ) : null}
               </div>
-              <p className="launch-note">
-                随时可以「结束并出报告」——报告不会因为提前结束而缺席。
-              </p>
-              {startErr ? (
-                <div className="err">
-                  <span className="code">E_START</span>
-                  {startErr}
-                </div>
-              ) : null}
             </section>
 
-            <div style={{ marginTop: 22, display: 'flex', gap: 12, alignItems: 'center' }}>
-              <button className="btn" onClick={extract} disabled={busy}>
-                {busy ? '正在重抽…' : '重新抽取'}
-              </button>
-              {rate.quote && (
-                <span className="dimtag">
-                  本次机检：引用 {rate.quote.hit}/{rate.quote.total}，缺失 {rate.absence?.total ?? 0}
-                </span>
-              )}
-            </div>
+            <p className="toolbar-note">
+              快速 = 3 位评委各 1 主问、3–6 轮出报告；完整 = 最多 15 轮。
+              三位评委会各挑一条最危险的质疑点发问
+              {reviseFrom ? '；这是「改后材料重审」，报告里会显示与上一场的风险分差和质疑点增删。' : '。'}
+              随时可以「结束并出报告」——报告不会因为提前结束而缺席。
+            </p>
+
+            {rate.quote ? (
+              <p className="toolbar-meta">
+                本次机检：引用 {rate.quote.hit}/{rate.quote.total}，缺失 {rate.absence?.total ?? 0}
+              </p>
+            ) : null}
+
+            {startErr ? (
+              <div className="err">
+                <span className="code">E_START</span>
+                {startErr}
+              </div>
+            ) : null}
 
             {/* 做了抽样就必须说，不许让报告看起来像"审了全部" */}
             {coverage?.sampled && (
@@ -359,6 +373,7 @@ export default function DocPage({ params }: { params: Promise<{ id: string }> })
                 .filter((tp) => filter.type === null || filter.type === tp)
                 .map((tp) => {
                 const list = visible.filter((c) => c.type === tp);
+                const isEmpty = list.length === 0;
                 return (
                   <section className="col" key={tp}>
                     <div className="colhd">
@@ -366,65 +381,78 @@ export default function DocPage({ params }: { params: Promise<{ id: string }> })
                       <span className="nm">{TYPE_LABEL[tp]}</span>
                       <span className="n">{list.length}</span>
                     </div>
-                    {list.length === 0 && <p className="empty">— 无 —</p>}
-                    {list.map((c) => {
-                      const isAbsence = c.locator_kind === 'absence';
-                      const opened = open[c.block_idx] === true;
-                      return (
-                        <article
-                          className={`card ${isAbsence ? 'absence-line' : 'quote-line'}`}
-                          key={`${c.block_idx}-${c.text.slice(0, 8)}`}
-                        >
-                          <div className="body">
-                            <p className="txt">{c.text}</p>
+                    {isEmpty ? (
+                      // 空列不再只放「— 无 —」：0 条本身是一条结论，说清它意味着什么
+                      <div className="col-empty">
+                        <span>该维度材料表述严密，未检测出高危漏洞</span>
+                        <span>
+                          <em>0 条</em>不代表没问题，只代表这一维没被挑出可引用的硬伤
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="col-body">
+                        {list.map((c) => {
+                          const isAbsence = c.locator_kind === 'absence';
+                          const opened = open[c.block_idx] === true;
+                          return (
+                            <article
+                              className={`card ${isAbsence ? 'absence-line' : 'quote-line'}`}
+                              key={`${c.block_idx}-${c.text.slice(0, 8)}`}
+                            >
+                              <p className="txt">{c.text}</p>
 
-                            <div className="meta">
-                              <span className="stars">
-                                {Array.from({ length: 5 }, (_, i) => (
-                                  <span key={i} className={i < c.risk ? 'on' : 'off'}>
-                                    ★
-                                  </span>
-                                ))}
-                              </span>
-                              <span className="dimtag">
-                                <i style={{ background: DIM_COLOR[c.dimension], width: 6, height: 6, display: 'inline-block' }} />
-                                {DIM_LABEL[c.dimension]}
-                              </span>
-                            </div>
-
-                            {isAbsence ? (
-                              // absence：不可点开。没有原文可点，就不能给出"可点开"的暗示
-                              <span className="anchor absence">
-                                缺失 · 已检索 {c.scope ?? '未标注范围'}
-                              </span>
-                            ) : (
-                              <>
-                                <span className="anchor">
-                                  {c.page !== null ? `P${c.page}` : c.section ?? '无章节'} · BLOCK {c.block_idx}
-                                  {c.verified === 1 ? ' · ✓ 逐字命中' : ' · 未校验'}
-                                </span>
-                                <br />
-                                <button
-                                  className="toggle"
-                                  onClick={() => setOpen((s) => ({ ...s, [c.block_idx]: !s[c.block_idx] }))}
-                                >
-                                  {opened ? '收起原文' : '展开原文'}
-                                </button>
-                                {opened && (
-                                  <div className="src">
-                                    <span className="where">
-                                      {c.page !== null ? `P${c.page}` : c.section ?? '无章节'} · BLOCK {c.block_idx}
-                                      {' · '}朱红高亮处即被引用的逐字原文
+                              <div className="meta">
+                                <span className="stars">
+                                  {Array.from({ length: 5 }, (_, i) => (
+                                    <span key={i} className={i < c.risk ? 'on' : 'off'}>
+                                      ★
                                     </span>
-                                    <Highlighted source={c.source ?? c.quote} quote={c.quote} />
+                                  ))}
+                                </span>
+                                <span className="dimtag">
+                                  <i style={{ background: DIM_COLOR[c.dimension], width: 6, height: 6, display: 'inline-block' }} />
+                                  {DIM_LABEL[c.dimension]}
+                                </span>
+                              </div>
+
+                              {isAbsence ? (
+                                // absence：不可点开。没有原文可点，就不能给出"可点开"的暗示
+                                <span className="tag tag-absence">
+                                  缺失 · 已检索 {c.scope ?? '未标注范围'}
+                                </span>
+                              ) : (
+                                <>
+                                  <div className="tagrow">
+                                    <span className="tag tag-quote">
+                                      {c.page !== null ? `P${c.page}` : c.section ?? '无章节'} · BLOCK {c.block_idx}
+                                    </span>
+                                    <span className={c.verified === 1 ? 'tag tag-hit' : 'tag tag-pending'}>
+                                      {c.verified === 1 ? '✓ 逐字命中' : '未校验'}
+                                    </span>
                                   </div>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        </article>
-                      );
-                    })}
+                                  <button
+                                    className="toggle"
+                                    aria-expanded={opened}
+                                    onClick={() => setOpen((s) => ({ ...s, [c.block_idx]: !s[c.block_idx] }))}
+                                  >
+                                    {opened ? '收起原文' : '展开原文'}
+                                  </button>
+                                  {opened && (
+                                    <div className="src">
+                                      <span className="where">
+                                        {c.page !== null ? `P${c.page}` : c.section ?? '无章节'} · BLOCK {c.block_idx}
+                                        {' · '}朱红高亮处即被引用的逐字原文
+                                      </span>
+                                      <Highlighted source={c.source ?? c.quote} quote={c.quote} />
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </article>
+                          );
+                        })}
+                      </div>
+                    )}
                   </section>
                 );
               })}
