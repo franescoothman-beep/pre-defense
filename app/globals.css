@@ -9,8 +9,8 @@
   --ink: #17150f;
   --ink-2: #413b2e;
   --muted: #8a806d;
-  --line: #e3dccd;
-  --line-2: #d1c8b6;
+  --line: #e7e0d2;
+  --line-2: #d6cdbb;
 
   --red: #b03a2e;
   --red-soft: rgba(176, 58, 46, 0.09);
@@ -33,12 +33,12 @@
   --red-deep: #8f2d23;
 
   /* 统一阴影与容器宽度：保持纸感，以克制层级替代装饰 */
-  --shadow-1: 0 1px 2px rgba(23, 21, 15, 0.04);
-  --shadow-2: 0 2px 6px rgba(23, 21, 15, 0.06);
+  --shadow-1: 0 1px 3px rgba(23, 21, 15, 0.07), 0 1px 1px rgba(23, 21, 15, 0.04);
+  --shadow-2: 0 4px 12px rgba(23, 21, 15, 0.09), 0 1px 3px rgba(23, 21, 15, 0.05);
   --container: 1080px;
   --container-narrow: 860px;
   --gap-row: 1px;
-  --pad-card: 18px 20px;
+  --pad-card: 20px 22px;
 }
 
 html,

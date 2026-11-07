@@ -188,7 +188,7 @@
 /* 风险条：长度=分值 */
 .risk-bar {
   height: 3px;
-  background: var(--line);
+  background: var(--line-2);
   margin-bottom: 10px;
   overflow: hidden;
 }
@@ -283,7 +283,7 @@
 
 .perf-track {
   height: 3px;
-  background: var(--line);
+  background: var(--line-2);
   margin-bottom: 10px;
   overflow: hidden;
 }
@@ -520,7 +520,14 @@
   font-size: 13.5px;
   line-height: 1.75;
   color: var(--ink-2);
-  margin: 0 0 6px;
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.high-q {
+  border-top: 0;
+  padding-top: 0;
 }
 
 .high-label {

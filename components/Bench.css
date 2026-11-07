@@ -28,7 +28,7 @@
 
 .seat {
   position: relative;
-  padding: 14px 18px 16px;
+  padding: 16px 20px 18px;
   border-right: 1px solid var(--line);
   /* 动效 #3：评委切换 180ms —— 只动 opacity，不做位移/缩放/发光 */
   transition: opacity 180ms ease;

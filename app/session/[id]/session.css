@@ -18,9 +18,9 @@
   display: flex;
   gap: 12px;
   align-items: center;
-  max-width: 1080px;
+  max-width: var(--container);
   margin: 0 auto;
-  padding: 10px 18px;
+  padding: 10px 24px;
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.08em;
