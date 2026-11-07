@@ -35,20 +35,35 @@
 /* ── 首屏 ── */
 .hero {
   border-bottom: 1px solid var(--line);
-  padding-bottom: 36px;
+  padding-bottom: 28px;
+}
+
+/* 阶段徽标：直角印章质感，等宽 11px，不用圆角（§2.4 全站只许一处圆角） */
+.hero-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  padding: 3px 8px;
+  margin-bottom: 14px;
 }
 
 .wordmark {
   font-family: var(--font-serif);
   font-size: 62px;
-  letter-spacing: 0.22em;
-  line-height: 1;
+  /* 字距收紧：0.22em 会让两个字飘成两座孤岛 */
+  letter-spacing: 0.12em;
+  line-height: 1.1;
   margin: 0;
   color: var(--ink);
 }
 
+/* 句号是文案的一部分（不能删），但降权到次要文字色，不再抢标题 */
 .wordmark .dot {
-  color: var(--red);
+  color: var(--muted);
 }
 
 .tagline {
@@ -56,16 +71,16 @@
   font-size: 17px;
   color: var(--ink-2);
   line-height: 1.95;
-  margin: 36px 0 0;
-  max-width: 56ch;
+  margin: 18px 0 0;
+  max-width: 62ch;
 }
 
 .tagline b {
   color: var(--ink);
   font-weight: 600;
-  /* 朱批感：不做高亮底色，只在字下画一道细线，像老师划的重点 */
-  border-bottom: 1px solid var(--red-line);
-  padding-bottom: 1px;
+  /* 朱批感：浅朱底微高亮替代下划线——细线容易被误读成未完成的链接 */
+  background: var(--red-soft);
+  padding: 0 2px;
 }
 
 /* 三步流水：把"产品怎么用"压成三个名词 */

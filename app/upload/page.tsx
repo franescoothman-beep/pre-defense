@@ -221,6 +221,7 @@ export default function UploadPage() {
       </div>
 
       <main className="shell">
+        <div className="hero-badge">STAGE 01 · 材料接入</div>
         <h1 className="wordmark">
           预演<span className="dot">。</span>
         </h1>

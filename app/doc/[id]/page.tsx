@@ -226,6 +226,7 @@ export default function DocPage({ params }: { params: Promise<{ id: string }> })
       </div>
 
       <main className="shell">
+        <div className="hero-badge">CHECKPOINT · 漏洞透视</div>
         <h1 className="wordmark">
           质疑点<span className="dot">。</span>
         </h1>

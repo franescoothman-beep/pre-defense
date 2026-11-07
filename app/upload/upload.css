@@ -32,17 +32,31 @@
   padding: 48px 24px 72px;
 }
 
+/* 阶段徽标：与首页 / 材料页同款直角印章（§2.4 不新增圆角） */
+.hero-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  padding: 3px 8px;
+  margin-bottom: 14px;
+}
+
 .wordmark {
   font-family: var(--font-serif);
   font-size: 34px;
-  letter-spacing: 0.24em;
-  line-height: 1;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
   margin: 0;
   color: var(--ink);
 }
 
+/* 句号降权到次要色：保留文案，不再抢标题 */
 .wordmark .dot {
-  color: var(--red);
+  color: var(--muted);
 }
 
 .lede {

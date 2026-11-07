@@ -29,6 +29,7 @@ export default function Home() {
 
       <main className="wrap">
         <section className="hero">
+          <div className="hero-badge">PHASE 01 · 答辩准备</div>
           <h1 className="wordmark">
             预演<span className="dot">。</span>
           </h1>

@@ -27,14 +27,28 @@
   padding: 40px 24px 72px;
 }
 
+/* 阶段徽标：与首页同款直角印章（尺寸/颜色走 token，不引入新字号档） */
+.hero-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  padding: 3px 8px;
+  margin-bottom: 14px;
+}
+
 .wordmark {
   font-family: var(--font-serif);
   font-size: 34px;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.12em;
   margin: 0;
   color: var(--ink);
 }
-.wordmark .dot { color: var(--red); }
+/* 句号降权到次要色：保留文案，不再抢标题 */
+.wordmark .dot { color: var(--muted); }
 
 .lede {
   font-family: var(--font-serif);
@@ -42,6 +56,7 @@
   color: var(--ink-2);
   line-height: 1.9;
   margin: 12px 0 0;
+  max-width: 62ch;
 }
 
 .stat {
