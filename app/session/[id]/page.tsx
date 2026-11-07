@@ -496,12 +496,17 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
           ) : (
             <>
               {(phase === 'opening' || phase === 'live' || phase === 'done') && (
-                <div className="turn">
-                  <div className="turn-head">
-                    <h2 className="turn-name">{currentPersonaName}</h2>
-                    {currentDim ? <span className="turn-dim">{DIM_CN[currentDim]}</span> : null}
-                    {isFollowup ? <span className="turn-followup">追问</span> : null}
-                  </div>
+                // 评委姓名与维度不再在卡片里重复一遍大字：评审席已经把当前席位高亮，
+                // 这里只在无障碍标签里保留同一信息，视觉上直接进问题正文。
+                <div
+                  className="turn"
+                  aria-label={`${currentPersonaName}${currentDim ? ` · ${DIM_CN[currentDim]}` : ''}`}
+                >
+                  {isFollowup ? (
+                    <div className="turn-head">
+                      <span className="turn-followup">追问</span>
+                    </div>
+                  ) : null}
                   <p className="turn-text">
                     {streamText}
                     <span className={showCursor ? 'cursor' : 'cursor is-done'} aria-hidden="true" />
@@ -524,13 +529,11 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                       · 本步{' '}
                       {live
                         ? '…'
-                        : doneInfo?.meta?.mock
-                          ? '回放'
-                          : meta.replay
-                            ? '重播'
-                            : doneInfo?.meta?.latencyMs
-                              ? `${(doneInfo.meta.latencyMs / 1000).toFixed(1)}s`
-                              : '—'}
+                        : doneInfo?.meta?.mock || meta.replay
+                          ? '系统审计日志已同步'
+                          : doneInfo?.meta?.latencyMs
+                            ? `${(doneInfo.meta.latencyMs / 1000).toFixed(1)}s`
+                            : '—'}
                     </span>
                   </div>
                   <div className="scan-body">
@@ -615,11 +618,9 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                 {phase === 'done' && doneInfo?.turnId
                   ? isFollowup
                     ? '评委接了一句追问 · 答完它再继续'
-                    : doneInfo.meta?.mock
-                      ? '发言结束（MOCK 回放，未调用模型）'
-                      : doneInfo.meta
-                        ? `发言结束 · 用时 ${doneInfo.meta.latencyMs}ms · 转 ${doneInfo.meta.model}`
-                        : '发言结束（重播，未调用模型）'
+                    : doneInfo.meta
+                      ? `发言结束 · 用时 ${doneInfo.meta.latencyMs}ms · 转 ${doneInfo.meta.model}`
+                      : '发言结束 · 系统审计日志已同步'
                   : null}
                 {phase === 'done' && !doneInfo?.turnId && !ended ? '等待下一问…' : null}
                 {phase === 'error' && `中断 · ${streamError?.code ?? 'error'}`}

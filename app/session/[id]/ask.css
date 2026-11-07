@@ -14,9 +14,12 @@
  */
 
 /* ── L5 扫读原文思考态 ───────────────────────────────── */
+/* 这里的左竖线是「事实锚点」标记：3px 赭石（最接近 amber 的既有维度色），
+   与判分面板的朱红左线、错误条的朱红左线区分开，读起来像一条批注边。 */
 .scan {
   border: 1px solid var(--line);
-  background: var(--paper-3);
+  border-left: 3px solid var(--dim-logic);
+  background: var(--paper);
   margin-top: 14px;
   position: relative;
   overflow: hidden;
@@ -124,16 +127,8 @@
   opacity: 0;
 }
 
-/* 光带关闭后给原文一个"已读"的左侧标记，让这一段仍可辨识 */
-.scan.is-settled::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--line-2);
-}
+/* 光带关闭后原本在左侧补一条灰竖线作为「已读」标记；
+   现在 .scan 本身常驻 3px 赭石锚点条，再叠一条会把锚点条盖成灰色，故不再重复。*/
 
 /* ── 作答区 ─────────────────────────────────────────── */
 .answer {

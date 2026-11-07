@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- 暖纸底 + 朱批竖笔：与站内「朱批 · 多材质」视觉同源，纯几何，不依赖字体 -->
+  <rect width="64" height="64" fill="#efeade"/>
+  <rect x="6.5" y="6.5" width="51" height="51" fill="#fbf8f1" stroke="#e7e0d2"/>
+  <rect x="16" y="15" width="9" height="34" fill="#9c3b2e"/>
+  <rect x="32" y="15" width="17" height="3" fill="#17150f" opacity="0.82"/>
+  <rect x="32" y="24" width="17" height="3" fill="#17150f" opacity="0.55"/>
+  <rect x="32" y="33" width="12" height="3" fill="#17150f" opacity="0.55"/>
+  <rect x="32" y="42" width="17" height="3" fill="#17150f" opacity="0.35"/>
+</svg>
