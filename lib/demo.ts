@@ -20,6 +20,7 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { isMockMode as runtimeMockMode } from './mode';
 
 /** 内置样例所在目录（相对仓库根） */
 export const DEMO_DIR = path.join('fixtures', 'demo');
@@ -27,9 +28,9 @@ export const DEMO_DIR = path.join('fixtures', 'demo');
 /** 内置样例文件名（与 fixtures/demo 里实际存在的文件一一对应） */
 export const DEMO_FILES = ['sample-paper.docx'] as const;
 
-/** 是否处于 MOCK 演示模式（唯一的判定出口，避免各处各写一遍） */
+/** 是否处于 MOCK 演示模式（唯一判定出口，运行期可被 /api/mode 覆盖） */
 export function isMockMode(): boolean {
-  return process.env.MOCK_LLM === '1';
+  return runtimeMockMode();
 }
 
 /** 文件字节的 sha256（十六进制） */
@@ -91,7 +92,8 @@ export function checkDemoOnly(bytes: Uint8Array, filename: string): DemoGuardRes
     message:
       `演示模式仅支持内置样例（${DEMO_FILES.join(' / ')}）。` +
       `你上传的「${filename}」不是内置样例。` +
-      `若要看自己的材料，请把 MOCK_LLM 设为 0 并配置模型密钥；` +
+      `若要看自己的材料，请在页面顶部切到「真实 · 实时模型」模式` +
+      `（或把 MOCK_LLM 设为 0 后重启）并配置模型密钥；` +
       `或在演示模式下改用内置样例。`,
   };
 }

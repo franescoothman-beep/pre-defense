@@ -404,6 +404,39 @@ S1 的三道闸里**只有魔数是骗不过去的**：扩展名和 MIME 都是�
 这三条合起来才让"零 key 演示"真的走得通。**它们不是测试技巧，是产品功能**——
 评委机器上没有 key，MOCK 回放是唯一能让他看到完整闭环的路径。
 
+### 3.7.1 模式的单一出口与运行期切换
+
+模式的判定**只有一个出口**：`lib/mode.ts` 的 `getMode()`。三处原本各写一遍 `process.env.MOCK_LLM === '1'`
+（`lib/llm.ts` 的 `isMock`、`lib/demo.ts` 的 `isMockMode`、`components/MockBadge.tsx` 的 `isMockMode`），
+现在全部委托给它，否则"切换"必然分叉成三种不一致的状态。
+
+```ts
+type AppMode = 'mock' | 'real';
+function bootDefault(): AppMode { return process.env.MOCK_LLM === '1' ? 'mock' : 'real'; }
+export function getMode(): AppMode { return g.__appMode ?? bootDefault(); }  // 运行期覆盖优先
+export function setMode(mode: AppMode): boolean { /* 写 globalThis.__appMode，幂等 */ }
+```
+
+设计取舍：
+
+| 问题 | 选择 | 理由 |
+|---|---|---|
+| 覆盖值存哪 | `globalThis.__appMode` | 与 `__db` / `__mockCursor` 同理，跨热重载存活、进程内唯一 |
+| 要不要落库 | **不落库** | 模式是"这台服务当前怎么跑"的运行时事实；重启回到 env 默认即可，避免为演示开关加表/迁移 |
+| 启动默认值 | 仍由 `MOCK_LLM` 决定 | `npm run demo` = 演示、`npm run dev` = 真实，不破坏既有启动契约与 README 四条命令 |
+| 怎么切换 | `POST /api/mode` | `GET` 严格只读（防止预取/爬虫意外改状态）；非法值 400 + `E_MODE` |
+
+**它是一道总闸，不是一个 UI 开关。** 两道安全闸都从这里取判定，所以切换模式等价于同时切换它们：
+
+1. **上传闸**：`checkDemoOnly()` 在 mock 下只收内置样例（按字节哈希，不看文件名），real 下放行任意合法文件；
+2. **发言闸**：`isMock()` 决定走 `callMock`（回放）还是 `callReal`（实时模型）。
+
+端到端实测（同一份"改了哈希的 docx"）：real 模式上传 → `200 + docId`；切到 mock 再传同一份 → `400 E_MOCK_NOT_DEMO`。
+若这两道闸各自读 env，切换后就会一边放开一边仍封锁，产生"能传但答不了"的半死状态。
+
+**布局必须按请求渲染。** `app/layout.tsx` 标 `dynamic = 'force-dynamic'`，因为模式可在运行期改变；
+若整棵树被构建期静态化成一张"冻结在 MOCK_LLM"的 HTML，切换后角标与档位就会撒谎。
+
 ---
 
 # 4. 可复现性论证

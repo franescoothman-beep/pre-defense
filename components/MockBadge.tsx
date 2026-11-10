@@ -6,18 +6,25 @@
 // 若界面上看不出来，评委看到"AI 秒出高质量问题"会以为是真的模型在跑。
 //
 // 【为什么是服务端组件】
-// 它读 process.env.MOCK_LLM —— 这是服务端才知道的事实。
+// 它读 lib/mode.ts 的模式判定 —— 这是服务端才知道的事实。
 // 若做成客户端组件用 NEXT_PUBLIC_ 变量，又多一份需要同步的配置，容易分叉。
 // 服务端读一次、把结果直接渲染进 HTML，刷新也对得上，且客户端无法伪造。
+//
+// 【为什么判定搬到 lib/mode.ts】
+// 运行期要支持「演示 / 真实」随时切换（不重启），而启动期 env（MOCK_LLM）
+// 只能定默认值。所以模式判定收敛到 lib/mode.ts 的唯一出口：启动默认仍来自
+// MOCK_LLM，运行期可被 /api/mode 覆盖。这里只负责"非 mock 不占位"的渲染约定。
 //
 // 【为什么分成 header / footer 两种形态】
 // 全局 header 用横条（显眼、每页都有）；
 // 报告页脚注用更小的一行（报告是"交付物"，角标不该抢正文的注意力，但也不能没有）。
 
 import './MockBadge.css';
+import { isMockMode as runtimeMockMode } from '@/lib/mode';
 
+/** 是否演示模式（委托 lib/mode 的唯一出口；非 mock 时角标不占位） */
 export function isMockMode(): boolean {
-  return process.env.MOCK_LLM === '1';
+  return runtimeMockMode();
 }
 
 type Props = {

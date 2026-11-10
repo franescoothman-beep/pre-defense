@@ -1,0 +1,71 @@
+/* components/ModeSwitch.css —— 运行期「演示 / 真实」模式切换条
+ *
+ * 位置：紧跟在 MockBadge 下方、同一个容器宽度内，右对齐的一条细工具栏。
+ * 不用 fixed 浮层 —— 报告页/狗粮页内容很密，浮层会压住正文，且录制时
+ * 任何遮挡都会变成返工。
+ *
+ * 视觉：分段控件（segmented control），两个"档位"并列，当前档位用朱红底白字，
+ * 另一档为纸底描边。它读起来像"切换台"而不是"警告"，与整体暖纸朱批一致。
+ *
+ * 铁律 9：本文件不写任何十六进制颜色，全部走 app/globals.css 的 token。
+ * 4 处动效清单不占用（模式切换是低频操作，加过渡反而显得浮）。
+ */
+
+.mode-switch {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 8px 24px 0;
+  font-family: var(--font-sans);
+}
+
+.mode-switch .seg {
+  appearance: none;
+  border: 1px solid var(--line-2);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.mode-switch .seg:hover:not(:disabled) {
+  border-color: var(--red-line);
+  color: var(--red-deep);
+}
+
+.mode-switch .seg.on {
+  background: var(--red);
+  border-color: var(--red);
+  color: var(--paper-3);
+}
+
+.mode-switch .seg:disabled {
+  cursor: progress;
+  opacity: 0.55;
+}
+
+.mode-switch .seg:focus-visible {
+  outline: 2px solid var(--red-line);
+  outline-offset: 2px;
+}
+
+.mode-switch .ms-err {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0;
+  color: var(--red-deep);
+}
+
+@media (max-width: 720px) {
+  .mode-switch {
+    padding: 8px 12px 0;
+    flex-wrap: wrap;
+  }
+}

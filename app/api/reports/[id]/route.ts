@@ -13,6 +13,7 @@ import { q } from '@/lib/db';
 import { reportPayloadOf, DIMENSION_LABEL, boardOf, overallOfCells, overallScoreOf } from '@/lib/report';
 import { loadSession, loadPersonas, loadTurns, loadClaimsOfDoc } from '@/lib/session';
 import { MODE_MATRIX, mainsDoneOf, mainsNeededOf } from '@/lib/state';
+import { isMockMode } from '@/lib/demo';
 
 export const dynamic = 'force-dynamic';
 
@@ -139,11 +140,13 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       overallPerf: overallScoreOf(payload.performance as never),
       /**
        * MOCK 角标事实。
-       * 【为什么由服务端给】MOCK_LLM 是服务端环境变量，客户端读不到；
+       * 【为什么由服务端给】模式是服务端事实，客户端读不到；
        * 报告页是 client component，不能直接渲染服务端的 MockBadge（footer 形态），
        * 所以把事实随数据一起带出来，页脚照实写一句。
+       * 【为什么走 getMode()】运行期可被 /api/mode 切换，不能再用启动期 env 字面量，
+       * 否则切到真实模式后报告页脚注还会谎称"录制回放"。
        */
-      mock: process.env.MOCK_LLM === '1',
+      mock: isMockMode(),
       // 覆盖缺口必须显式给出：quick 档只问 3 问，必然覆盖不满 4 维，
       // 报告页要写"本场 3 问，覆盖 3/4 维 · 完整评审请切 full 档"，而不是假装都覆盖了。
       personas: personas.map((p) => ({

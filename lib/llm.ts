@@ -24,6 +24,7 @@ import type { ZodType } from 'zod';
 import { z } from 'zod';
 import { readUpstream } from './sse';
 import { HARD_LIMITS } from './state';
+import { isMockMode } from './mode';
 
 /**
  * 四种阶段 + 一个提问阶段。
@@ -142,7 +143,7 @@ export function promptHashOf(text: string): string {
 }
 
 export function isMock(): boolean {
-  return process.env.MOCK_LLM === '1';
+  return isMockMode();
 }
 
 /**
@@ -262,7 +263,7 @@ async function callReal(input: CallInput): Promise<{ data: unknown; meta: CallMe
   if (!key) {
     throw new LlmError(
       'E_NO_KEY',
-      '未配置 DEEPSEEK_API_KEY。若只是想复现演示，请把 MOCK_LLM 设为 1（零 key 走内置样例）。',
+      '未配置 DEEPSEEK_API_KEY。若只是想复现演示，请在页面顶部切到「演示 · 零 key 回放」（或把 MOCK_LLM 设为 1）。',
     );
   }
   const base = (process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com').replace(/\/$/, '');
@@ -534,7 +535,7 @@ async function* streamBody(input: CallInput): AsyncGenerator<string, { data: unk
   if (!key) {
     throw new LlmError(
       'E_NO_KEY',
-      '未配置 DEEPSEEK_API_KEY。若只是想复现演示，请把 MOCK_LLM 设为 1（零 key 走内置样例）。',
+      '未配置 DEEPSEEK_API_KEY。若只是想复现演示，请在页面顶部切到「演示 · 零 key 回放」（或把 MOCK_LLM 设为 1）。',
     );
   }
   const base = (process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com').replace(/\/$/, '');

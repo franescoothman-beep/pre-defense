@@ -80,10 +80,14 @@ test('MOCK 角标：必须在全局 layout 挂载（服务端渲染，客户端�
   assert.ok(layout.includes('variant="header"'), '全局用 header 形态');
 });
 
-test('MOCK 角标：由服务端读 MOCK_LLM，且非 mock 时返回 null 不占位', () => {
+test('MOCK 角标：由服务端判定模式，且非 mock 时返回 null 不占位', () => {
   const src = fs.readFileSync('components/MockBadge.tsx', 'utf8');
-  assert.ok(src.includes("process.env.MOCK_LLM === '1'"), '必须服务端读环境变量（客户端无法伪造）');
+  // 判定收敛到 lib/mode.ts 的唯一出口（运行期可被 /api/mode 覆盖）；
+  // MockBadge 必须委托它，而不是自己再读一遍 env（否则切换会分叉）。
+  assert.ok(src.includes('runtimeMockMode'), '必须委托 lib/mode 的出口（客户端无法伪造）');
   assert.ok(/if \(!isMockMode\(\)\) return null/.test(src), '非 mock 模式必须完全不渲染');
+  const modeSrc = fs.readFileSync('lib/mode.ts', 'utf8');
+  assert.ok(modeSrc.includes("process.env.MOCK_LLM === '1'"), '启动默认值仍由 env 决定');
 });
 
 test('MOCK 角标：文案必须明确"录制回放，非实时模型输出"', () => {

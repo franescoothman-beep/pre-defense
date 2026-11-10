@@ -253,7 +253,8 @@ export default function UploadPage() {
                 评委将无法据此提问——所以这里直接禁止，而不是让你传到一半才失败。
               </p>
               <p className="mb-how">
-                要看自己的材料：把 <code>MOCK_LLM</code> 设为 <code>0</code> 并配置模型密钥，重启服务。
+                要看自己的材料：点页面顶部的「真实 · 实时模型」切到真实模式（需配置模型密钥），
+                或把 <code>MOCK_LLM</code> 设为 <code>0</code> 后重启服务。
               </p>
               {/* 不能只拦住却不给下一步：演示模式必须有一条明确的入口 */}
               <div className="mb-next">

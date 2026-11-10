@@ -12,6 +12,7 @@ import {
   resetDemoHashes,
   DEMO_FILES,
 } from '../lib/demo.ts';
+import { resetMode } from '../lib/mode.ts';
 
 /**
  * 「MOCK 演示模式只允许内置样例」的测试（§3.9 前提①）。
@@ -20,6 +21,10 @@ import {
  * 绕过前端有无数种办法（curl、禁用 JS、改 JS），
  * 若服务端照单全收，mock 就会拿用户的无关材料回放内置样例的剧本 ——
  * 表现为"凭我这份简历，评委却在问论文里的 1240 条数据"。
+ *
+ * 注：模式现在由 lib/mode.ts 统一出口决定（env 定默认值 + 运行期可覆盖）。
+ * 这些用环境变量驱动的用例必须先 resetMode() —— 否则同进程里若有别的用例
+ * 设过运行期覆盖，改 env 不会生效，用例就会假失败。
  */
 
 const mindBytes = new TextEncoder().encode('这是一份用户的真实简历，不是内置样例。');
@@ -43,9 +48,11 @@ test('isDemoSample：同一份样例改名后仍然命中（哈希与文件名�
 test('checkDemoOnly：非 mock 模式一律放行（真实模式必须接受任何合法文件）', () => {
   const prev = process.env.MOCK_LLM;
   process.env.MOCK_LLM = '0';
+  resetMode();
   try {
     assert.equal(checkDemoOnly(mindBytes, 'my-resume.pdf'), null, '真实模式不能因为演示约束被收紧');
   } finally {
+    resetMode();
     if (prev === undefined) delete process.env.MOCK_LLM;
     else process.env.MOCK_LLM = prev;
   }
@@ -54,6 +61,7 @@ test('checkDemoOnly：非 mock 模式一律放行（真实模式必须接受任�
 test('checkDemoOnly：mock 模式下非样例 → 拒绝，且错误码与文案可读', () => {
   const prev = process.env.MOCK_LLM;
   process.env.MOCK_LLM = '1';
+  resetMode();
   try {
     const r = checkDemoOnly(mindBytes, 'my-resume.pdf');
     assert.ok(r, '必须拒绝');
@@ -61,6 +69,7 @@ test('checkDemoOnly：mock 模式下非样例 → 拒绝，且错误码与文案
     assert.ok(r.message.includes('仅支持内置样例'), '文案要点明原因');
     assert.ok(r.message.includes('MOCK_LLM'), '文案要给出可操作的下一步');
   } finally {
+    resetMode();
     if (prev === undefined) delete process.env.MOCK_LLM;
     else process.env.MOCK_LLM = prev;
   }
@@ -69,10 +78,12 @@ test('checkDemoOnly：mock 模式下非样例 → 拒绝，且错误码与文案
 test('checkDemoOnly：mock 模式下样例本身 → 放行', () => {
   const prev = process.env.MOCK_LLM;
   process.env.MOCK_LLM = '1';
+  resetMode();
   try {
     const bytes = new Uint8Array(fs.readFileSync(path.join('fixtures', 'demo', 'sample-paper.docx')));
     assert.equal(checkDemoOnly(bytes, 'sample-paper.docx'), null);
   } finally {
+    resetMode();
     if (prev === undefined) delete process.env.MOCK_LLM;
     else process.env.MOCK_LLM = prev;
   }
@@ -117,8 +128,9 @@ test('前端：拦住之后必须给下一步（不能被拦住却无路可走�
 
 test('health：必须暴露 mock 标记（前端置灰的依据是服务端事实）', () => {
   const src = fs.readFileSync('app/api/health/route.ts', 'utf8');
-  assert.ok(src.includes('isMockMode'), 'health 必须用统一判定出口');
-  assert.ok(/mock:\s*isMockMode\(\)/.test(src), 'health 返回体要带 mock 字段');
+  assert.ok(src.includes('getMode'), 'health 必须用统一判定出口（运行期可切换）');
+  assert.ok(/mock:\s*mode === 'mock'/.test(src), 'health 返回体要带 mock 字段');
+  assert.ok(/mode,/.test(src), 'health 还要直接返回 mode，供切换控件读当前档位');
 });
 
 test('/api/demo：只在演示模式提供，且不回用户自己的材料', () => {
