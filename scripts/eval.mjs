@@ -43,8 +43,8 @@ const DOC_ID = argOf('doc', null);
 const RUNS = Math.max(2, Number(argOf('runs', 2) || 2));
 const OUT = argOf('out', 'docs/eval/eval-result.json');
 const ANSWER = argOf('answer',
-  '这一问我们确实考虑了。样本来自某市三所小学一学期 1240 条记录，方法上做了哑变量处理，' +
-  '但确实没划分训练集与测试集，这是后续要补的。结论推广到全省的场景，我们也只在同批数据上验证过。');
+  '这一问我们确实考虑了。评测集是 800 条人工标注的教务问答，但确实在多轮调优中反复用过，' +
+  '存在过拟合风险，后续会切出一部分做严格意义上的测试集。推广到政务、医疗的场景，目前只有教务一个域的验证。');
 
 if (!DOC_ID) {
   console.error('用法：node scripts/eval.mjs --doc <docId> [--runs 2] [--out docs/eval/eval-result.json]');

@@ -1,5 +1,5 @@
 {
-  "notes": "MOCK 回放：质疑点抽取。quote 全部由脚本从 sample-paper.blocks.json 逐字切片生成；批次与 batchesOf() 一致：[[1, 3, 4, 6, 7], [9]]。",
+  "notes": "MOCK 回放：质疑点抽取（2026-11-11 真实录制，DeepSeek key）。批次与 batchesOf() 一致：[[1, 3, 4, 6, 7], [8, 10]]。quote 由模型逐字复制并由服务端 attachLocator 机检。",
   "seq": [
     {
       "inputHash": "batch0",
@@ -7,49 +7,112 @@
         "claims": [
           {
             "type": "method",
-            "text": "只采了三所学校的数据，这个样本能代表全市的课后服务吗？",
+            "text": "800条评测集既用于多轮调优又用于最终报告准确率，如何排除过拟合导致的虚高？",
+            "block_idx": 4,
+            "kind": "quote",
+            "quote": "我们用 800 条评测集对召回与重排模块进行了多轮迭代调优",
+            "risk": 5,
+            "dimension": "evidence"
+          },
+          {
+            "type": "method",
+            "text": "评测集与调优集完全重合，96.8%的准确率还能代表未见数据上的泛化性能吗？",
+            "block_idx": 6,
+            "kind": "quote",
+            "quote": "实验在 800 条评测集上进行。结果显示系统准确率 96.8%",
+            "risk": 5,
+            "dimension": "evidence"
+          },
+          {
+            "type": "method",
+            "text": "T5微调基线是否在同一份800条数据上训练或调参，比较是否公平？",
+            "block_idx": 6,
+            "kind": "quote",
+            "quote": "超过了同学们基于 T5 微调基线的 85% 水平",
+            "risk": 4,
+            "dimension": "logic"
+          },
+          {
+            "type": "method",
+            "text": "准确率如何定义，是人工判定、字符串匹配还是模型打分，有无标注一致性检验？",
             "block_idx": 3,
             "kind": "absence",
             "quote": "",
-            "scope": "2. 数据与方法",
-            "risk": 4,
-            "dimension": "evidence"
-          },
-          {
-            "type": "engineering",
-            "text": "数据字段是学校自报的还是你采集的？家长评分有没有自评偏差？",
-            "block_idx": 3,
-            "kind": "quote",
-            "quote": "我们采集了某市三所小学一学期的课后服务记录，共计 1240 条。",
-            "risk": 3,
-            "dimension": "depth"
-          },
-          {
-            "type": "method",
-            "text": "用多元线性回归拟合满意度，变量的多重共线性做过检验吗？",
-            "block_idx": 4,
-            "kind": "quote",
-            "quote": "在建模上，我们采用多元线性回归拟合家长满意度，并将活动类型作为哑变量处理。",
-            "risk": 4,
-            "dimension": "depth"
-          },
-          {
-            "type": "engineering",
-            "text": "决定系数 0.62 就被解读为「解释大部分差异」，这个判断有依据吗？",
-            "block_idx": 4,
-            "kind": "quote",
-            "quote": "模型的决定系数为 0.62，说明三类字段能解释大部分满意度差异。",
-            "risk": 3,
-            "dimension": "evidence"
-          },
-          {
-            "type": "method",
-            "text": "没有划分训练集与测试集，0.62 是不是过拟合的结果？",
-            "block_idx": 6,
-            "kind": "quote",
-            "quote": "实验在同一批数据上进行，未划分训练集与测试集。",
+            "scope": "§2 系统设计与实现、§3 实验与结果",
             "risk": 5,
             "dimension": "evidence"
+          },
+          {
+            "type": "method",
+            "text": "仅10位同学打分、平均4.6分，样本量这么小，满意度结论的统计效力何在？",
+            "block_idx": 7,
+            "kind": "quote",
+            "quote": "我们请 10 位同学试用并打分，满意度平均 4.6 分",
+            "risk": 4,
+            "dimension": "evidence"
+          },
+          {
+            "type": "method",
+            "text": "主观评价只报告流畅自然，是否测量了事实正确性，流畅与准确是否被混为一谈？",
+            "block_idx": 7,
+            "kind": "quote",
+            "quote": "同学们普遍认为回答流畅自然",
+            "risk": 4,
+            "dimension": "logic"
+          },
+          {
+            "type": "method",
+            "text": "去掉检索后准确率下降15个百分点，但生成模型与提示词是否同步做了适配，消融是否干净？",
+            "block_idx": 6,
+            "kind": "quote",
+            "quote": "去掉检索模块后准确率下降约 15 个百分点",
+            "risk": 4,
+            "dimension": "logic"
+          },
+          {
+            "type": "engineering",
+            "text": "温度固定为0.1是否做过对比实验，该取值对准确率与多样性的影响有无量化？",
+            "block_idx": 3,
+            "kind": "quote",
+            "quote": "温度参数设为 0.1",
+            "risk": 3,
+            "dimension": "depth"
+          },
+          {
+            "type": "engineering",
+            "text": "BERT句向量召回在教务短问句上的召回率是多少，为何不选更强的检索器或混合检索？",
+            "block_idx": 3,
+            "kind": "quote",
+            "quote": "系统整体采用 BERT 句向量召回与 GPT 类生成模型级联的架构",
+            "risk": 4,
+            "dimension": "depth"
+          },
+          {
+            "type": "engineering",
+            "text": "4000条语料覆盖选课、成绩、学籍三类，规模与覆盖面是否足以支撑垂直场景的检索？",
+            "block_idx": 3,
+            "kind": "quote",
+            "quote": "我们收集了校内教务问答语料约 4000 条",
+            "risk": 3,
+            "dimension": "evidence"
+          },
+          {
+            "type": "value",
+            "text": "声称同类系统多采用端到端微调，这一判断有何文献或调研依据，是否树立了稻草人？",
+            "block_idx": 1,
+            "kind": "quote",
+            "quote": "现有同类系统多采用端到端微调方案，较少涉及检索增强路线在垂直场景的系统化评估",
+            "risk": 4,
+            "dimension": "logic"
+          },
+          {
+            "type": "value",
+            "text": "相比通用大模型直接问答，本系统在真实教务场景的落地收益有无量化对比？",
+            "block_idx": 1,
+            "kind": "quote",
+            "quote": "旨在用大模型与检索结合的方式提升回答的准确性与可信度",
+            "risk": 3,
+            "dimension": "depth"
           }
         ]
       }
@@ -60,12 +123,49 @@
         "claims": [
           {
             "type": "value",
-            "text": "既然要靠「引入更多学校」才敢验证稳健性，现在这个结论凭什么先下？",
-            "block_idx": 9,
+            "text": "96.8%的准确率是在什么规模、什么标注规范的评测集上得到的，样本量是否足以支撑这一结论？",
+            "block_idx": 10,
             "kind": "quote",
-            "quote": "后续将进一步引入更多学校的数据以验证模型的稳健性。",
+            "quote": "在教务问答评测集上取得了 96.8% 的准确率",
+            "risk": 4,
+            "dimension": "evidence"
+          },
+          {
+            "type": "method",
+            "text": "只报告准确率而不设基线对照，如何证明96.8%是检索增强带来的而非大模型本身的能力？",
+            "block_idx": 10,
+            "kind": "quote",
+            "quote": "验证了检索增强路线的有效性",
+            "risk": 5,
+            "dimension": "logic"
+          },
+          {
+            "type": "method",
+            "text": "准确率的判定标准是什么，由谁标注、一致性如何，是否区分了拒答与答错？",
+            "block_idx": 10,
+            "kind": "absence",
+            "quote": "",
+            "scope": "§4 结论及§3 实验与结果",
+            "risk": 4,
+            "dimension": "evidence"
+          },
+          {
+            "type": "value",
+            "text": "仅凭单一教务问答场景的结果，凭什么断言可推广到政务、医疗等差异极大的领域？",
+            "block_idx": 8,
+            "kind": "quote",
+            "quote": "我们认为该方案可以推广到政务咨询、医疗导诊等其他垂直领域问答场景",
             "risk": 4,
             "dimension": "logic"
+          },
+          {
+            "type": "engineering",
+            "text": "多轮对话能力尚未实现，当前系统在真实教务场景中追问、指代时表现如何？",
+            "block_idx": 10,
+            "kind": "quote",
+            "quote": "后续将扩充语料规模，并探索多轮对话能力的引入",
+            "risk": 3,
+            "dimension": "depth"
           }
         ]
       }
