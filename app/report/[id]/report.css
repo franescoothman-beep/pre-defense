@@ -15,9 +15,9 @@
  */
 
 .report-shell {
-  max-width: var(--container);
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 0 24px 80px;
+  padding: 0 24px 20px;
 }
 
 /* ── 深墨封面带：全站唯一的深色块，报告的身份 ── */
@@ -28,9 +28,9 @@
 }
 
 .report-cover-inner {
-  max-width: var(--container);
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 36px 24px 30px;
+  padding: 16px 24px 14px;
 }
 
 .report-kicker {
@@ -39,7 +39,7 @@
   letter-spacing: 0.22em;
   color: var(--red-line);
   display: block;
-  margin-bottom: 12px;
+  margin-bottom: 5px;
 }
 
 .report-title {
@@ -47,7 +47,7 @@
   font-size: 26px;
   font-weight: 600;
   line-height: 1.35;
-  margin: 0 0 12px;
+  margin: 0 0 6px;
   color: var(--paper-3);
 }
 
@@ -70,8 +70,8 @@
   border: 1px solid var(--line);
   border-left: 2px solid var(--red);
   background: var(--paper-2);
-  padding: 12px 16px;
-  margin: 20px 0 18px;
+  padding: 7px 12px;
+  margin: 10px 0 10px;
   font-size: 13.5px;
   line-height: 1.7;
   color: var(--ink-2);
@@ -91,7 +91,7 @@
 .report-cols {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: 16px;
   align-items: start;
 }
 
@@ -104,8 +104,8 @@
   font-size: 17px;
   font-weight: 600;
   color: var(--ink);
-  margin: 20px 0 12px;
-  padding: 10px 0;
+  margin: 8px 0 6px;
+  padding: 7px 0;
   border-top: 2px solid var(--dim-logic);
   border-bottom: 1px solid var(--line);
   display: flex;
@@ -128,7 +128,7 @@
   background: var(--paper);
   box-shadow: var(--shadow-1);
   padding: var(--pad-card);
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .risk-card-head {
@@ -256,7 +256,7 @@
   background: var(--paper);
   box-shadow: var(--shadow-1);
   padding: var(--pad-card);
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .perf-head {
@@ -461,15 +461,15 @@
 
 /* ── 高风险清单 ── */
 .report-high {
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .high-item {
   border: 1px solid var(--line);
   background: var(--paper);
   box-shadow: var(--shadow-1);
-  padding: var(--pad-card);
-  margin-bottom: 16px;
+  padding: 13px 14px;
+  margin-bottom: 10px;
 }
 
 .high-head {
@@ -481,7 +481,7 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   color: var(--muted);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -509,19 +509,19 @@
 
 .high-text {
   font-size: 13.5px;
-  line-height: 1.75;
+  line-height: 1.6;
   color: var(--ink);
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 }
 
 .high-q,
 .high-why,
 .high-sug {
   font-size: 13.5px;
-  line-height: 1.75;
+  line-height: 1.6;
   color: var(--ink-2);
   margin: 0;
-  padding-top: 8px;
+  padding-top: 6px;
   border-top: 1px solid var(--line);
 }
 
@@ -542,9 +542,9 @@
 .high-quote {
   font-family: var(--font-serif);
   font-size: 13.5px;
-  line-height: 1.8;
+  line-height: 1.6;
   color: var(--muted);
-  margin: 8px 0 0;
+  margin: 5px 0 0;
   padding-left: 10px;
   border-left: 1px solid var(--line-2);
 }
@@ -555,30 +555,30 @@
   letter-spacing: 0.06em;
   color: var(--line-2);
   display: block;
-  margin-top: 8px;
+  margin-top: 5px;
 }
 
 /* ── 总建议 ── */
 .report-advice {
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .report-advice p {
   font-size: 13.5px;
-  line-height: 1.85;
+  line-height: 1.7;
   color: var(--ink-2);
   margin: 0;
   border: 1px solid var(--line);
   border-top: 2px solid var(--red);
   background: var(--paper);
   box-shadow: var(--shadow-1);
-  padding: 16px 18px;
+  padding: 10px 12px;
   white-space: pre-wrap;
 }
 
 /* ── 审议轨迹 ── */
 .report-trajectory {
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .tr-item {
@@ -586,8 +586,8 @@
   border-left: 2px solid var(--line-2);
   background: var(--paper);
   box-shadow: var(--shadow-1);
-  padding: 14px 16px;
-  margin-bottom: 12px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
 }
 
 .tr-head {
@@ -599,7 +599,7 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   color: var(--muted);
-  margin-bottom: 7px;
+  margin-bottom: 5px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -636,14 +636,14 @@
 .tr-q {
   font-family: var(--font-serif);
   font-size: 17px;
-  line-height: 1.85;
+  line-height: 1.7;
   color: var(--ink);
-  margin: 0 0 7px;
+  margin: 0 0 5px;
 }
 
 .tr-a {
   font-size: 13.5px;
-  line-height: 1.75;
+  line-height: 1.65;
   color: var(--ink-2);
   margin: 0;
   padding-left: 10px;
@@ -743,8 +743,8 @@
   border: 1px solid var(--line);
   background: var(--paper);
   box-shadow: var(--shadow-1);
-  margin: 20px 0 0;
-  padding: 12px 14px;
+  margin: 10px 0 0;
+  padding: 7px 12px;
 }
 
 .trace-lb {
@@ -789,7 +789,7 @@
 
 /* ── 质询风险看板 ── */
 .board {
-  margin-top: 20px;
+  margin-top: 14px;
 }
 
 .board-hd {
@@ -838,7 +838,7 @@
   letter-spacing: 0.08em;
   color: var(--muted);
   background: var(--paper-2);
-  padding: 8px 10px;
+  padding: 6px 9px;
   white-space: nowrap;
 }
 
@@ -856,7 +856,7 @@
 }
 
 .board-rowhd {
-  padding: 9px 10px;
+  padding: 7px 9px;
   background: var(--paper-2);
   font-weight: 400;
 }
@@ -890,7 +890,7 @@
 /* 可点的格子：整格是一个链接，鼠标移上去才显出纸背色 */
 .board-cell {
   display: block;
-  padding: 8px 10px 9px;
+  padding: 6px 9px 7px;
   text-decoration: none;
   color: inherit;
 }
@@ -1120,7 +1120,7 @@
 
 /* ── 复练入口 ── */
 .report-actions {
-  margin-top: 24px;
+  margin-top: 12px;
 }
 
 .actions-row {
@@ -1136,7 +1136,7 @@
   background: var(--ink);
   color: var(--paper-3);
   border: 1px solid var(--ink);
-  padding: 14px 16px;
+  padding: 9px 12px;
   font-family: var(--font-serif);
   font-size: 17px;
   font-weight: 600;
@@ -1182,7 +1182,7 @@
   line-height: 1.9;
   letter-spacing: 0.05em;
   color: var(--line-2);
-  margin-top: 10px;
+  margin-top: 6px;
 }
 
 /* ── 页脚 MOCK 角标 ── */
@@ -1192,8 +1192,32 @@
   letter-spacing: 0.06em;
   color: var(--muted);
   border-top: 1px solid var(--line);
-  margin-top: 28px;
-  padding-top: 10px;
+  margin-top: 10px;
+  padding-top: 8px;
+}
+
+/* ── 宽屏把「高风险清单」「审议轨迹」也排成两列 ──
+ * 为什么：125% 缩放下 CSS 视口只有 1365×853，这两段竖排分别占 933px / 602px，
+ * 是整页纵向浪费最大的两块。它们都是**彼此独立的卡片**（一条一条读，不分先后
+ * 依赖），排两列不改变阅读顺序，只是把一列长条折成两列。
+ * 阈值取 980px：低于它两列每张卡不足 420px，13.5px 正文会折得太碎，所以退回单列。
+ */
+@media (min-width: 980px) {
+  .report-high,
+  .report-trajectory {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    align-items: start;
+  }
+  .report-high > .report-col-title,
+  .report-trajectory > .report-col-title {
+    grid-column: 1 / -1;
+  }
+  .report-high .high-item,
+  .report-trajectory .tr-item {
+    margin-bottom: 0;
+  }
 }
 
 /* ── 窄屏：400px 也要求两栏塌成单栏 ── */

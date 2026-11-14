@@ -29,13 +29,13 @@
 .wrap {
   max-width: var(--container-narrow);
   margin: 0 auto;
-  padding: 56px 24px 80px;
+  padding: 10px 24px 10px;
 }
 
 /* ── 首屏 ── */
 .hero {
   border-bottom: 1px solid var(--line);
-  padding-bottom: 28px;
+  padding-bottom: 10px;
 }
 
 /* 阶段徽标：等宽小字 + 浅底胶囊，先说明"这是哪一步"，再给标题 */
@@ -48,8 +48,8 @@
   background: var(--paper-2);
   border: 1px solid var(--line);
   border-radius: 4px;
-  padding: 3px 8px;
-  margin-bottom: 14px;
+  padding: 2px 7px;
+  margin-bottom: 6px;
 }
 
 /* 标题：无衬线粗体，收敛到 34px（五级阶梯内），不再用 62px 字标 */
@@ -68,9 +68,9 @@
   font-family: var(--font-sans);
   font-size: 13.5px;
   color: var(--muted);
-  line-height: 1.75;
-  margin: 14px 0 0;
-  max-width: 62ch;
+  line-height: 1.7;
+  margin: 8px 0 0;
+  max-width: none;
 }
 
 /* 强调：浅朱底微高亮替代下划线——细线容易被误读成未完成的超链接 */
@@ -85,7 +85,7 @@
 .flow {
   display: flex;
   gap: 0;
-  margin: 36px 0 0;
+  margin: 12px 0 0;
   border: 1px solid var(--line);
   background: var(--paper);
   box-shadow: var(--shadow-1);
@@ -93,7 +93,7 @@
 
 .flow .step {
   flex: 1;
-  padding: 22px 24px;
+  padding: 10px 16px;
   border-right: 1px solid var(--line);
 }
 
@@ -112,14 +112,14 @@
   font-family: var(--font-serif);
   font-size: 17px;
   color: var(--ink);
-  margin: 6px 0 0;
+  margin: 4px 0 0;
 }
 
 .flow .ds {
   font-size: 13.5px;
-  line-height: 1.8;
+  line-height: 1.7;
   color: var(--muted);
-  margin: 10px 0 0;
+  margin: 5px 0 0;
 }
 
 /* ── 入口 ── */
@@ -128,13 +128,13 @@
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
-  margin-top: 32px;
+  margin-top: 14px;
 }
 
 .btn {
   font-family: var(--font-sans);
   font-size: 13.5px;
-  padding: 11px 24px;
+  padding: 9px 20px;
   border: 1px solid var(--ink);
   background: var(--ink);
   color: var(--paper);
@@ -159,7 +159,7 @@
 
 /* ── 为什么不是"随便问问" ── */
 .sect {
-  margin-top: 56px;
+  margin-top: 18px;
 }
 
 .sect .hd {
@@ -167,16 +167,16 @@
   font-size: 11px;
   letter-spacing: 0.14em;
   color: var(--red);
-  margin: 0 0 14px;
+  margin: 0 0 6px;
 }
 
 .sect .lede {
   font-family: var(--font-serif);
   font-size: 13.5px;
-  line-height: 1.95;
+  line-height: 1.75;
   color: var(--ink-2);
-  margin: 0 0 18px;
-  max-width: 62ch;
+  margin: 0 0 10px;
+  max-width: none;
 }
 
 /* 两条对比：普通预演 vs 这里 */
@@ -189,7 +189,7 @@
 }
 
 .vs > div {
-  padding: 22px 24px;
+  padding: 10px 14px;
   background: var(--paper);
 }
 
@@ -203,7 +203,7 @@
   font-size: 11px;
   letter-spacing: 0.1em;
   color: var(--muted);
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .vs .mine .ttl {
@@ -218,14 +218,14 @@
 
 .vs li {
   font-size: 13.5px;
-  line-height: 1.8;
+  line-height: 1.65;
   color: var(--ink-2);
   padding-left: 14px;
   position: relative;
 }
 
 .vs li + li {
-  margin-top: 6px;
+  margin-top: 2px;
 }
 
 .vs li::before {
@@ -242,10 +242,10 @@
 
 /* ── 证据链说明（这是作品的核心主张，必须上首页） ── */
 .proof {
-  margin-top: 56px;
+  margin-top: 18px;
   border: 1px solid var(--red-line);
   background: var(--red-soft);
-  padding: 26px 28px;
+  padding: 12px 16px;
 }
 
 .proof .hd {
@@ -258,10 +258,10 @@
 
 .proof .tx {
   font-size: 13.5px;
-  line-height: 1.9;
+  line-height: 1.65;
   color: var(--ink-2);
   margin: 0;
-  max-width: 64ch;
+  max-width: none;
 }
 
 .proof .tx b {
@@ -273,8 +273,8 @@
   display: flex;
   gap: 20px;
   flex-wrap: wrap;
-  margin-top: 16px;
-  padding-top: 16px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--red-line);
 }
 
@@ -296,8 +296,8 @@
 
 /* ── 页脚 ── */
 .foot {
-  margin-top: 48px;
-  padding-top: 18px;
+  margin-top: 16px;
+  padding-top: 8px;
   border-top: 1px solid var(--line);
   display: flex;
   gap: 16px;

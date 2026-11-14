@@ -29,7 +29,7 @@
 .shell {
   max-width: var(--container-narrow);
   margin: 0 auto;
-  padding: 48px 24px 72px;
+  padding: 26px 24px 28px;
 }
 
 /* 阶段徽标：等宽小字 + 浅底胶囊（与首页、材料页同款） */
@@ -42,8 +42,8 @@
   background: var(--paper-2);
   border: 1px solid var(--line);
   border-radius: 4px;
-  padding: 3px 8px;
-  margin-bottom: 14px;
+  padding: 2px 7px;
+  margin-bottom: 8px;
 }
 
 /* 标题：无衬线粗体，34px（五级阶梯内） */
@@ -62,20 +62,20 @@
   font-family: var(--font-sans);
   font-size: 13.5px;
   color: var(--muted);
-  line-height: 1.75;
-  margin: 14px 0 0;
-  max-width: 62ch;
+  line-height: 1.65;
+  margin: 8px 0 0;
+  max-width: none;
 }
 
 .frame {
   background: var(--paper);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-1);
-  margin-top: 32px;
+  margin-top: 18px;
 }
 
 .drop {
-  padding: 44px 28px;
+  padding: 26px 28px;
   text-align: center;
   border: 1px dashed var(--line-2);
   margin: 20px;
@@ -130,8 +130,8 @@
 
 /* ── 演示模式说明块 ── */
 .mock-block {
-  margin: 20px 20px 0;
-  padding: 16px 18px;
+  margin: 14px 16px 0;
+  padding: 12px 16px;
   border: 1px solid var(--red-line);
   background: var(--red-soft);
 }
