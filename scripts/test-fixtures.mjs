@@ -6,12 +6,16 @@
 // 演示那一刻抛 E_SCHEMA「回放数据不符合当前结构约定」，而演示往往就是录屏／评审。
 // 所以规矩是：**改完 prompt 或 schema 必须跑 npm run test:fixtures**。
 //
-// 【校验分三层，缺一不可】
+// 【校验分四层，缺一不可】
 //   1. 结构层：每条 response 过 lib/schemas.ts 里对应的 zod schema（与运行时同一份）
 //   2. 机检层：fixture 里的 locator 必须能过 lib/locator.ts 的逐字／scope 机检
 //      —— 只过 zod 是不够的：zod 只管"字段形状"，管不了"quote 是否真的在原文里"
 //   3. 跨条层：personas 三位评委的 opening claim_id 必须互不相同
 //      （服务端有锚点归属校验，同一条 claim 会让 3 位评委被过滤成 1 位）
+//   4. 锚点层：fixture 里引用的 claim_id 必须都在 demo 种子里
+//      —— 前三层全绿也可能在演示时 502：种子与 fixture 是两份硬编码，
+//      任何一次「重新抽取」把库里 claim id 换成新 UUID，personas 就一条也对不上
+//      （11-03、11-14 各踩过一次）。这一层把"脱钩"挡在提交之前。
 //
 // 用法：
 //   node scripts/test-fixtures.mjs
@@ -260,7 +264,54 @@ if (seen.has('personas')) {
   }
 }
 
-// ── 4. 汇报 ─────────────────────────────────────────────────────────────────
+// ── 4. 锚点层：fixture 引用的 claim_id 必须都在 demo 种子里 ──────────────────
+// 前三层全绿也可能在演示当天 502：种子和 fixture 是两份硬编码，只要库里 claim id
+// 被换成新 UUID（例如点一次「重新抽取」），personas 的 opening 就一条也对不上，
+// 服务端锚点归属校验会把三位评委全过滤掉，用户看到的是「质询不了了」。
+// 这一层把「脱钩」挡在提交之前 —— 11-03、11-14 各踩过一次。
+{
+  const seedPath = path.join(process.cwd(), 'scripts', 'seed-demo-data.json');
+  if (!existsSync(seedPath)) {
+    fail('scripts/seed-demo-data.json', '缺失 —— demo 种子里没有 claims，锚点层无从校验');
+  } else {
+    const seed = JSON.parse(readFileSync(seedPath, 'utf8'));
+    const seedIds = new Set((seed.claims ?? []).map((c) => c.id));
+    if (seedIds.size === 0) {
+      fail('scripts/seed-demo-data.json', 'claims 为空 —— 锚点层无从校验');
+    }
+
+    const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
+    let stale = 0;
+    let scanned = 0;
+
+    for (const phase of Object.keys(PHASES)) {
+      const file = path.join(FIX_DIR, `${phase}.json`);
+      if (!existsSync(file)) continue;
+      const text = readFileSync(file, 'utf8');
+      // 只认「像 claim_id 的」UUID：种子里没有的 docId 也是 36 位 UUID，
+      // 但它出现在 persona/query 的 doc 字段上，不该被当成失效锚点。
+      const ids = [...new Set(text.match(UUID_RE) ?? [])].filter(
+        (id) => id !== seed.doc?.id && id !== seed.doc?.docId,
+      );
+      scanned += ids.length;
+      const missing = ids.filter((id) => !seedIds.has(id));
+      if (missing.length > 0) {
+        stale += missing.length;
+        fail(
+          `fixtures/llm/${phase}.json`,
+          `${missing.length} 个 claim_id 不在 demo 种子里（${missing.map((m) => m.slice(0, 8)).join(', ')}）` +
+            ' —— 演示时这些引用会被静默丢弃，personas 更会直接 502',
+        );
+      }
+    }
+
+    if (stale === 0) {
+      ok('锚点层', `${scanned} 个 claim_id 引用全部能在种子里找到`);
+    }
+  }
+}
+
+// ── 5. 汇报 ─────────────────────────────────────────────────────────────────
 const verbose = process.argv.includes('--verbose') || process.argv.includes('-v');
 if (verbose) {
   for (const line of notes) console.log(line);

@@ -14,6 +14,13 @@
 // 灌库是幂等的：只有当库里没有「已抽 claims 的 sample-paper.docx」时才写入，
 // 重启不会重复灌、也不会覆盖用户真实模式下上传的数据（演示模式根本不碰上传）。
 //
+// 【但"有 claims"不等于"能回放"】
+// 11-03 与 11-14 各踩过一次同一个坑：在质疑点页点过「重新抽取」（或真实模式抽过一次），
+// 库里的 claim id 就换成了新 UUID，而种子里的 id 才是 personas.json 引用的那批。
+// 库里"有 17 条 claims"于是这里直接跳过，回放却一条都对不上 → 建会话 502 E_NO_ANCHOR。
+// 所以判据从"有没有 claims"升级成"**种子里的每个 claim id 是否都还在**"：
+// 少一个就按种子原样修复（只重写这个 demo 文档的 claims，不碰 blocks/documents）。
+//
 // 【为什么直接复用产品侧 lib/db.ts 建表】
 // 库表是 lib/db.ts 里"首次 q.* 调用时才建"的（懒连接，避开构建期多 worker 抢锁）。
 // 这里用产品自己的 q/tx 来读写，表自然就建好了，不必把建表语句抄一遍（抄了必漂移）。
@@ -61,12 +68,54 @@ function seedIfMissing() {
   const claimed = existing
     ? Number(q.get('select count(*) as n from claims where doc_id = ?', String(existing.id)).n)
     : 0;
+
+  const seed = JSON.parse(fs.readFileSync(SEED, 'utf8'));
+
   if (claimed > 0) {
-    console.log('[demo] 内置样例已就绪，跳过灌库。');
+    // 库里已有 claims：只有当种子里的 claim id 一个不少时才算"就绪"。
+    // 缺了就说明被重抽打断过锚点（见文件头的说明），按种子原样补回。
+    const docId = String(existing.id);
+    const live = new Set(q.all('select id from claims where doc_id = ?', docId).map((r) => String(r.id)));
+    const missing = seed.claims.filter((c) => !live.has(c.id));
+    if (missing.length === 0) {
+      console.log('[demo] 内置样例已就绪，跳过灌库。');
+      return;
+    }
+    console.log(
+      `[demo] 检测到锚点 id 漂移（种子 ${seed.claims.length} 条里有 ${missing.length} 条已不在库里），按种子修复 claims。`,
+    );
+    try {
+      tx(() => {
+        q.run('delete from claims where doc_id = ?', docId);
+        for (const c of seed.claims) {
+          q.run(
+            `insert into claims(id, doc_id, type, text, block_idx, page, section, quote,
+                                locator_kind, scope, verified, risk, dimension, created_at)
+             values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            c.id,
+            docId,
+            c.type,
+            c.text,
+            c.block_idx,
+            c.page,
+            c.section,
+            c.quote,
+            c.locator_kind,
+            c.scope,
+            c.verified,
+            c.risk,
+            c.dimension,
+            new Date().toISOString(),
+          );
+        }
+      });
+      console.log(`[demo] 已按种子修复 ${seed.claims.length} 条 claims，personas 回放重新接得上。`);
+    } catch (e) {
+      console.warn('[demo] 修复 claims 失败（已回滚，不影响真实模式）：', e?.message ?? e);
+    }
     return;
   }
 
-  const seed = JSON.parse(fs.readFileSync(SEED, 'utf8'));
   const now = new Date().toISOString();
   try {
     tx(() => {

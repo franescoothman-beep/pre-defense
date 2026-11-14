@@ -114,6 +114,21 @@ async function handleExtract(ctx: { params: Promise<{ id: string }> }): Promise<
           return allBatches[at];
         });
 
+  // 【重抽时必须复用旧 claim id】
+  // claim id 不是流水号，它是**锚点的身份证**：personas 回放（fixtures/llm/personas.json）
+  // 与报告的 high_risk 都是按 claim_id 直接引用的。以前这里一 delete 就全换新 UUID，
+  // 结果是"重新抽取"之后，回放的评委问题一条都对不上自己的质疑点，
+  // 建会话直接 502 E_NO_ANCHOR —— 用户看到的就是"我质询不了了"。
+  // 现在按「同一个锚点 = 同一个 id」保留：block_idx + kind + quote 三者相同就沿用旧 id，
+  // 只有新出现的锚点才发新 UUID。重抽只更新 text/risk/dimension 这些可再判的字段。
+  const prevIds = new Map<string, string>();
+  for (const r of q.all(
+    'select id, block_idx, quote, locator_kind from claims where doc_id = ?',
+    docId,
+  ) as Array<{ id: string; block_idx: number; quote: string; locator_kind: string }>) {
+    prevIds.set(`${r.block_idx}|${r.locator_kind}|${r.quote}`, r.id);
+  }
+
   // 先清掉旧结果：重抽必须是"替换"而不是"叠加"，否则重复抽取会让命中率分母虚高
   q.run('delete from claims where doc_id = ?', docId);
 
@@ -185,11 +200,14 @@ async function handleExtract(ctx: { params: Promise<{ id: string }> }): Promise<
 
   const now = new Date().toISOString();
   for (const c of all) {
+    // 同锚点沿用旧 id（见上面 prevIds 的说明）；新锚点才发新 UUID
+    const anchorKey = `${c.block_idx}|${c.locator_kind}|${c.quote}`;
+    const id = prevIds.get(anchorKey) ?? crypto.randomUUID();
     q.run(
       `insert into claims(id, doc_id, type, text, block_idx, page, section, quote,
                           locator_kind, scope, verified, risk, dimension, created_at)
        values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      crypto.randomUUID(),
+      id,
       docId,
       c.type,
       c.text,

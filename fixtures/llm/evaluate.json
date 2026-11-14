@@ -86,7 +86,7 @@
         ],
         "followup": {
           "question": "先回到兜底：检索片段为空或与问题不相关时，系统是直接拒答，还是允许模型脱离片段生成？",
-          "target_claim_id": "36499b57-6806-4897-8068-00f058a6728a",
+          "target_claim_id": "e038d24a-b948-4c31-9c79-46d20241afbc",
           "resolved": false
         }
       }
@@ -115,7 +115,7 @@
         ],
         "followup": {
           "question": "如果去掉检索模块、只用同一基座模型直接作答，同一评测集上的准确率是多少？",
-          "target_claim_id": "36499b57-6806-4897-8068-00f058a6728a",
+          "target_claim_id": "e038d24a-b948-4c31-9c79-46d20241afbc",
           "resolved": false
         }
       }
