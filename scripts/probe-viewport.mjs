@@ -27,7 +27,14 @@
 //   node scripts/probe-viewport.mjs --path / --path /upload
 //   node scripts/probe-viewport.mjs --top 12         # 每页列前 12 个纵向大户
 //
-// 退出码：0 = 全部一屏装得下；1 = 有页面要上下滑；2 = 有页面没测到真实内容。
+// 【为什么 /report 用另一条判定】
+// 报告页有 2998px 真实内容（封面带 + 看板表 + 8 张维度卡 + 4 条高风险各三段 + 轨迹 + 复练区），
+// 不删内容就装不进 783px。11-14 与用户确认后，这一页的验收标准改成
+// **「风险分 + 四维 + 前两条高风险在第一屏内可见」**，落点是 `.report-glance` 摘要块。
+// 于是探针对 `/report/*` 判的是"摘要块底边 ≤ 视口高"，而不是"整页 scrollH ≤ 视口高"。
+// 判据仍可量化（一个元素的 getBoundingClientRect().bottom），不是"看着差不多"。
+//
+// 退出码：0 = 全部达标；1 = 有页面不达标；2 = 有页面没测到真实内容。
 
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -216,6 +223,9 @@ const MEASURE = `(() => {
   if (document.body) walk(document.body, 0);
   // 只保留「叶子级大户」：没有子元素比它更高（>80% 高度）的，才是真正占位的块
   const leaves = tall.filter((t) => !tall.some((o) => o.depth > t.depth && o.h > t.h * 0.8 && o.sel.includes(t.sel.split(' > ').pop())));
+  // 报告页的第一屏摘要：底边落在视口内即算达标（见文件头「为什么 /report 用另一条判定」）
+  const glance = document.querySelector('.report-glance');
+  const glanceBottom = glance ? Math.round(glance.getBoundingClientRect().bottom) : null;
   return JSON.stringify({
     clientH: de.clientHeight,
     scrollH: Math.max(de.scrollHeight, document.body ? document.body.scrollHeight : 0),
@@ -225,6 +235,7 @@ const MEASURE = `(() => {
     skeleton: /正在读取报告|正在加载|加载中|正在解析|正在抽取|正在排席位|正在生成报告|正在发言/.test(
       document.body ? document.body.innerText : '',
     ),
+    glanceBottom,
     tall: (leaves.length ? leaves : tall).sort((a, b) => b.h - a.h).slice(0, 24),
   });
 })()`;
@@ -315,11 +326,24 @@ async function main() {
     }
 
     const over = last.scrollH - last.clientH;
-    const bad = over > TOLERANCE;
-    results.push({ path: p, ...last, over, bad, unmeasured: !measured });
+    // 报告页按「摘要块是否落在第一屏」判，其余页面按「整页是否装得下」判
+    const isReport = p.startsWith('/report/');
+    const glanceOk = last.glanceBottom !== null && last.glanceBottom <= last.clientH;
+    const bad = isReport ? !glanceOk : over > TOLERANCE;
+    results.push({ path: p, ...last, over, bad, unmeasured: !measured, isReport, glanceOk });
 
     const mark = !measured ? '⚠' : bad ? '✖' : '✔';
-    const note = bad ? `  ← 要上下滑 ${over}px` : over > 0 ? `  （容差内 +${over}）` : '';
+    let note;
+    if (!measured) {
+      note = '';
+    } else if (isReport) {
+      note =
+        last.glanceBottom === null
+          ? '  ← 没找到第一屏摘要块'
+          : `  第一屏摘要底边=${last.glanceBottom} ${glanceOk ? '✔ 在一屏内' : `✖ 超出 ${last.glanceBottom - last.clientH}px`}（整页另需滑 ${over}px）`;
+    } else {
+      note = bad ? `  ← 要上下滑 ${over}px` : over > 0 ? `  （容差内 +${over}）` : '';
+    }
     console.log(
       `${mark} ${p.padEnd(40)} scrollH=${String(last.scrollH).padEnd(5)} 视口=${last.clientH}${note}`,
     );
@@ -336,11 +360,17 @@ async function main() {
   const unmeasured = results.filter((r) => r.unmeasured);
   console.log('─'.repeat(78));
   console.log(
-    `判定：${results.length - bad.length - unmeasured.length} / ${results.length} 个页面一屏装得下（${WIDTH}×${HEIGHT}）`,
+    `判定：${results.length - bad.length - unmeasured.length} / ${results.length} 个页面达标（${WIDTH}×${HEIGHT}）`,
   );
   if (bad.length > 0) {
     console.log('');
-    for (const b of bad) console.log(`   ✖ ${b.path}  要滑 ${b.over}px`);
+    for (const b of bad) {
+      console.log(
+        b.isReport
+          ? `   ✖ ${b.path}  第一屏摘要超出 ${b.glanceBottom - b.clientH}px（整页另需滑 ${b.over}px）`
+          : `   ✖ ${b.path}  要滑 ${b.over}px`,
+      );
+    }
   }
   if (unmeasured.length > 0) {
     console.log('');

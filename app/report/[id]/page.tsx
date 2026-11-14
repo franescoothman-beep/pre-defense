@@ -366,6 +366,64 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
           </div>
         ) : null}
 
+        {/* ── 第一屏摘要：风险分（封面朱印已有）→ 四维 → 最危险的两条 ──
+         *
+         * 为什么要有这一块：125% 真实视口只有 1365×783，而整页内容 2998px，
+         * 不删内容就装不进一屏。所以这一页的验收目标是
+         * **"风险分 + 四维 + 前两条高风险在第一屏内可见"**，不是"整页一屏"。
+         *
+         * 摘要不是重复：它只回答"哪一维最危险、最危险的两条是什么"，
+         * "为什么危险 / 怎么改 / 原文在哪"全留在下面的明细里，一条没少。
+         */}
+        {risk.length > 0 || high.length > 0 ? (
+          <section className="report-glance" aria-label="一眼看完">
+            <div className="glance-dims">
+              {risk.map((r) => {
+                const cls = r.risk_score === null ? '' : riskLevelCss(r.risk_score);
+                return (
+                  <a
+                    key={r.dimension}
+                    className={`glance-dim${cls}`}
+                    href={ctx ? `/doc/${ctx.docId}?dim=${r.dimension}` : '#'}
+                    title={
+                      r.risk_score === null
+                        ? `${r.label}：材料里没有这一维的质疑点`
+                        : `${r.label}：聚合风险 ${r.risk_score}，${r.claims} 条质疑点`
+                    }
+                  >
+                    <span className="gd-name">{r.label}</span>
+                    <span className="gd-score">{r.risk_score ?? '—'}</span>
+                    <span className="gd-bar" aria-hidden="true">
+                      <i style={{ width: `${r.risk_score ?? 0}%` }} />
+                    </span>
+                    <span className="gd-n">
+                      {r.risk_score === null
+                        ? '材料无此维'
+                        : `${r.claims} 条${r.absence > 0 ? ` · 缺 ${r.absence}` : ''}`}
+                    </span>
+                  </a>
+                );
+              })}
+            </div>
+
+            <ol className="glance-high">
+              {high.slice(0, 2).map((h, i) => (
+                <li key={h.claimId}>
+                  <b className="gh-rank">{String(i + 1).padStart(2, '0')}</b>
+                  <span className="gh-dim">{DIM_CN[h.dimension as Dim] ?? h.dimension}</span>
+                  <span className="gh-risk">风险 {h.risk}/5</span>
+                  <p className="gh-text">{h.text ?? ''}</p>
+                </li>
+              ))}
+              {high.length > 2 ? (
+                <p className="glance-more">
+                  另有 {high.length - 2} 条高风险 · 往下滑看全部与改法
+                </p>
+              ) : null}
+            </ol>
+          </section>
+        ) : null}
+
         {/* ── 审议轨迹（紧凑条）：谁在第几轮、给了几分 ── */}
         {ctx && ctx.trajectory.length > 0 ? (
           <section className="trace-strip" aria-label="审议轨迹">

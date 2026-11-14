@@ -27,10 +27,12 @@
   border-bottom: 2px solid var(--red);
 }
 
+/* 封面带压到 ~110px：它是"报告的身份"，但一屏只有 783px（125% 真实视口），
+   身份够认就行，不必占 130px 去撑排场。 */
 .report-cover-inner {
   max-width: 1240px;
   margin: 0 auto;
-  padding: 16px 24px 14px;
+  padding: 12px 24px 11px;
 }
 
 .report-kicker {
@@ -85,6 +87,159 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   color: var(--red);
+}
+
+/* ── 第一屏摘要：风险分 / 四维 / 最危险的两条 ──
+ *
+ * 为什么单独有这一块：125% 真实视口（1365×783）下整页有 2998px，
+ * "整页塞进一屏"不删内容做不到。于是把验收目标改成
+ * "风险分 + 四维 + 前两条高风险在第一屏内可见"——
+ * 这块就是那份"一眼看完"的摘要，完整明细仍在下方各节，一条不删。
+ *
+ * 它不是重复：摘要只给"哪个维度最危险、最危险的两条是什么"，
+ * 为什么危险、怎么改、原文在哪，都留在下方明细里。
+ */
+.report-glance {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 10px;
+  margin: 10px 0 0;
+}
+
+/* 左：四维一格，2×2。分数与条长同源（都是 risk_score），扫一眼就知道哪维最糟 */
+.glance-dims {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  box-shadow: var(--shadow-1);
+  padding: 8px 10px;
+}
+
+.glance-dim {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 8px;
+  padding: 5px 8px 6px;
+  border-left: 2px solid var(--line-2);
+  text-decoration: none;
+}
+
+.glance-dim:hover {
+  background: var(--paper-2);
+}
+
+/* 危险等级只编码数据（与 .risk-score 同一套语义，不另起色阶） */
+.glance-dim.is-high { border-left-color: var(--red); }
+.glance-dim.is-mid  { border-left-color: var(--red-deep); }
+.glance-dim.is-low  { border-left-color: var(--line-2); }
+
+.gd-name {
+  font-family: var(--font-serif);
+  font-size: 13.5px;
+  color: var(--ink);
+}
+
+.gd-score {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.glance-dim.is-high .gd-score { color: var(--red); }
+.glance-dim.is-mid .gd-score  { color: var(--red-deep); }
+
+.gd-bar {
+  grid-column: 1 / -1;
+  height: 3px;
+  background: var(--line-2);
+  overflow: hidden;
+}
+
+.gd-bar i {
+  display: block;
+  height: 100%;
+  background: var(--muted);
+}
+
+.glance-dim.is-high .gd-bar i { background: var(--red); }
+.glance-dim.is-mid .gd-bar i  { background: var(--red-deep); opacity: 0.75; }
+
+.gd-n {
+  grid-column: 1 / -1;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+/* 右：最危险的两条，只给"哪条 / 多危险 / 一句话"，详情在下方清单 */
+.glance-high {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  box-shadow: var(--shadow-1);
+  padding: 8px 11px;
+  margin: 0;
+  list-style: none;
+  display: grid;
+  gap: 7px;
+  align-content: start;
+}
+
+.glance-high > li {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  justify-content: start;
+  align-items: baseline;
+  gap: 8px;
+  border-left: 2px solid var(--red);
+  padding-left: 9px;
+}
+
+.gh-rank {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--red);
+  font-variant-numeric: tabular-nums;
+}
+
+.gh-dim {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+}
+
+.gh-risk {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--red-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+.gh-text {
+  grid-column: 1 / -1;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink);
+  margin: 0;
+}
+
+/* 摘要 → 明细的引导语：说明"下面还有全文"，避免被读成"报告就这些" */
+.glance-more {
+  grid-column: 1 / -1;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--line-2);
+  margin: 0;
+  text-align: right;
 }
 
 /* ── 两栏 ── */
@@ -1225,6 +1380,10 @@
   .report-cols {
     grid-template-columns: 1fr;
     gap: 0;
+  }
+  /* 摘要块同理：400px 下并排两栏会把 13.5px 正文挤成一列两三个字 */
+  .report-glance {
+    grid-template-columns: 1fr;
   }
   .report-title {
     font-size: 22px;

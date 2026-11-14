@@ -521,3 +521,48 @@ test('报告 CSS：risk 与 perf 不共用颜色映射（C14）', () => {
   assert.match(reportCss, /\.cellv\.is-high\s*\{\s*color: var\(--red\)/);
   assert.match(reportCss, /\.big-num\.is-good\s*\{\s*color: var\(--green\)/);
 });
+
+// ─────────────────────── 第一屏摘要（125% 视口验收） ───────────────────────
+
+test('报告页：第一屏摘要给出风险分 / 四维 / 前两条高风险', () => {
+  // 125% 真实视口只有 1365×783，整页 2998px 装不进一屏（不删内容做不到）。
+  // 因此这一页的验收标准是"关键信息在第一屏内可见"，不要求整页一屏。
+  // 摘要块是这条验收标准的落点，删了它这条标准就无从验证。
+  assert.match(reportSrc, /className="report-glance"/, '摘要块必须在');
+  assert.match(reportSrc, /aria-label="一眼看完"/);
+  // 四维全给，一维不落（包括 risk_score === null 的"材料无此维"）
+  assert.match(reportSrc, /risk\.map\(\(r\) =>/, '四维要全渲染');
+  // 只取前两条，但要明说下面还有
+  assert.match(reportSrc, /high\.slice\(0, 2\)/, '摘要只放最危险的两条');
+  assert.match(reportSrc, /另有 \{high\.length - 2\} 条高风险/, '要告诉用户还有多少条');
+});
+
+test('报告页：摘要不替代明细——高风险全长清单与四维卡片都还在', () => {
+  // 摘要的定位是"一眼看完"，不是"看完就完"。如果哪天有人为了压高度
+  // 把下方明细删了，这一页就退化成只剩摘要，等于丢信息。
+  assert.match(reportSrc, /className="report-high"/, '高风险全长清单必须在');
+  assert.match(reportSrc, /className="risk-card"/, '材料风险四维卡片必须在');
+  assert.match(reportSrc, /className="perf-card"/, '临场表现四维卡片必须在');
+  assert.match(reportSrc, /high\.map\(\(h, i\) =>/, '全长清单要遍历全部而不是前两条');
+});
+
+test('报告页：摘要里的分数与下方明细同源，不另算一份', () => {
+  // 同一页出现两个"证据 82"却各自计算，是这类摘要最典型的漂移来源。
+  assert.match(reportSrc, /r\.risk_score/, '摘要取的是 aggregateMaterialRisk 的结果');
+  assert.match(reportSrc, /r\.claims/, '条数也取同一份');
+  // 危险等级复用同一个函数，不复制一份阈值
+  assert.match(reportSrc, /riskLevelCss\(r\.risk_score\)/, '等级走同一个 riskLevelCss');
+});
+
+test('报告 CSS：摘要块在窄屏塌成单栏（400px 不许并排）', () => {
+  const narrow = reportCss.slice(reportCss.indexOf('@media (max-width: 860px)'));
+  assert.match(narrow, /\.report-glance\s*\{\s*grid-template-columns: 1fr;/, '400px 下摘要必须单栏');
+});
+
+test('报告 CSS：摘要块颜色只走 token，无十六进制', () => {
+  const start = reportCss.indexOf('.report-glance');
+  const block = reportCss.slice(start, reportCss.indexOf('.report-cols', start));
+  assert.ok(block.length > 200, '摘要样式块要能找到');
+  const hex = block.match(/#[0-9a-fA-F]{3,8}/g) ?? [];
+  assert.deepEqual(hex, [], `摘要块出现十六进制颜色：${hex.join(', ')}`);
+});
