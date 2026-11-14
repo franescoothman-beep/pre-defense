@@ -207,8 +207,10 @@
   border-left: 2px solid var(--dim-logic);
   border-radius: 4px;
   box-shadow: var(--shadow-1);
-  padding: 12px 14px;
-  margin-bottom: 8px;
+  /* 卡片内距从 12/8 收到 10/6：在 125% 缩放下（列高 483px）能完整露出 3 张卡，
+     而不是卡在第 3 张被裁一半。字号/行距阶梯不动，只压内距。 */
+  padding: 10px 14px;
+  margin-bottom: 6px;
 }
 .card:last-child { margin-bottom: 0; }
 .card:hover { border-color: var(--line-2); }
@@ -230,7 +232,7 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .stars {
