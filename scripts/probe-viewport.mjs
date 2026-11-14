@@ -1,7 +1,13 @@
 // scripts/probe-viewport.mjs —— 125% 缩放下「一屏装得下」回归探针
 //
 // 【为什么需要这个脚本】
-// 录制口径是 OBS 整屏 2560×1600 → 浏览器 125%。浏览器 CSS 视口 = 2560/1.5(Win 150%)/1.25 ≈ 1365×853。
+// 录制口径是 OBS 整屏 2560×1600 → 浏览器 125%。逻辑桌面 = 2560/1.5 × 1600/1.5 = 1707×1067。
+// **但窗口内的页面视口不是 1067**：Edge/Chrome 的标签栏 + 地址栏 + 书签栏约占 88 个**逻辑**像素，
+// 而浏览器缩放的只是页面，不吃 chrome。所以真实的 CSS 视口是
+//     (1067 − 88) ÷ 1.25 ≈ 1365 × 783
+// 早期版本这里写的是 853（把整块逻辑屏直接除以 1.25），量出来的「一屏装得下」是虚高的：
+// 853 比真实视口多 70px，正好能让 125% 下的卡片列多塞进去一张卡。11-14 用户截图
+// （1365 宽下第 3 张卡被裁）推翻了这个口径，于是默认高度改为 783。
 // 在这个视口里，任何页面 documentElement.scrollHeight > clientHeight 就意味着录制时要**上下滑**——
 // 而「滑动」在成片里是硬伤：观众看不清你在哪、镜头会跳。
 // 所以这是一个可量化的判定：scrollHeight 减去视口高 = 还得滑多少像素。
@@ -16,8 +22,8 @@
 // 而猜错是 11-02 横向探针第一版的教训（见 probe-mobile.mjs:190-192）。
 //
 // 用法：
-//   node scripts/probe-viewport.mjs                  # 默认 1365×853（125% 口径）
-//   node scripts/probe-viewport.mjs --height 900
+//   node scripts/probe-viewport.mjs                  # 默认 1365×783（125% 真实窗口口径）
+//   node scripts/probe-viewport.mjs --height 853     # 全屏无 chrome 时的宽松口径
 //   node scripts/probe-viewport.mjs --path / --path /upload
 //   node scripts/probe-viewport.mjs --top 12         # 每页列前 12 个纵向大户
 //
@@ -37,9 +43,9 @@ const flag = (name, def) => {
 const has = (name) => argv.includes(name);
 const multi = (name) => argv.reduce((acc, a, i) => (a === name && argv[i + 1] ? [...acc, argv[i + 1]] : acc), []);
 
-// 1365×853 = 2560×1600 物理屏 / Win 150% 缩放 / 浏览器 125% 缩放
+// 1365×783 = (2560×1600 物理屏 → Win 150% 逻辑桌面 1707×1067 → 扣掉浏览器 chrome 88 → 页面视口 979 ÷ 125%)
 const WIDTH = Number(flag('--width', '1365'));
-const HEIGHT = Number(flag('--height', '853'));
+const HEIGHT = Number(flag('--height', '783'));
 const BASE = flag('--base', 'http://127.0.0.1:3111').replace(/\/$/, '');
 const EXPLICIT = multi('--path');
 const PORT = Number(flag('--port', '9334'));

@@ -18,7 +18,10 @@
   gap: 8px;
   max-width: var(--container);
   margin: 0 auto;
-  padding: 8px 24px 0;
+  /* 上内距 8→4px、按钮纵向 5→4px：这条切换条同样是每页常驻，
+     在 125% 真实窗口（CSS 视口 ~783px）下它和 MOCK 横条一起吃掉 60+px。
+     收紧后仍是一个可点中的分段控件（命中区 27px 高，远高于 24px 可点下限）。 */
+  padding: 4px 24px 0;
   font-family: var(--font-sans);
 }
 
@@ -30,7 +33,7 @@
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.06em;
-  padding: 5px 12px;
+  padding: 4px 12px;
   cursor: pointer;
   transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }

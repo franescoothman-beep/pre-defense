@@ -15,7 +15,10 @@
   gap: 10px;
   max-width: var(--container);
   margin: 0 auto;
-  padding: 6px 24px;
+  /* 纵向内距 6→3px：这条横条在每一页都要占位，125% 真实窗口下页面视口只有
+     ~783px（扣掉浏览器 chrome 88 逻辑像素后），每一页都在为这 6px 付滚动代价。
+     3px 时 11px 等宽字的上下留白仍然够，读起来还是一枚"批注印章"而不是一条警告。 */
+  padding: 3px 24px;
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.06em;

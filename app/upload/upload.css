@@ -29,7 +29,9 @@
 .shell {
   max-width: var(--container-narrow);
   margin: 0 auto;
-  padding: 26px 24px 28px;
+  /* 26/28 → 18/20px：125% 真实窗口的 CSS 视口是 ~783px（扣掉浏览器 chrome 88
+     逻辑像素），这一页当时差 7px 要滑。上下各收 8px 即够，正文宽度不受影响。 */
+  padding: 18px 24px 20px;
 }
 
 /* 阶段徽标：等宽小字 + 浅底胶囊（与首页、材料页同款） */

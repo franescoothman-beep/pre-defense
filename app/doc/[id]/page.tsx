@@ -413,6 +413,15 @@ export default function DocPage({ params }: { params: Promise<{ id: string }> })
                                   <i style={{ background: DIM_COLOR[c.dimension], width: 6, height: 6, display: 'inline-block' }} />
                                   {DIM_LABEL[c.dimension]}
                                 </span>
+                                {!isAbsence && (
+                                  <button
+                                    className="toggle"
+                                    aria-expanded={opened}
+                                    onClick={() => setOpen((s) => ({ ...s, [c.block_idx]: !s[c.block_idx] }))}
+                                  >
+                                    {opened ? '收起原文' : '展开原文'}
+                                  </button>
+                                )}
                               </div>
 
                               {isAbsence ? (
@@ -430,13 +439,6 @@ export default function DocPage({ params }: { params: Promise<{ id: string }> })
                                       {c.verified === 1 ? '✓ 逐字命中' : '未校验'}
                                     </span>
                                   </div>
-                                  <button
-                                    className="toggle"
-                                    aria-expanded={opened}
-                                    onClick={() => setOpen((s) => ({ ...s, [c.block_idx]: !s[c.block_idx] }))}
-                                  >
-                                    {opened ? '收起原文' : '展开原文'}
-                                  </button>
                                   {opened && (
                                     <div className="src">
                                       <span className="where">

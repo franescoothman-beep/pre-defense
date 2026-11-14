@@ -83,17 +83,19 @@
 
 /* 三列统一高度：10 张卡的一列在列内滚动，空列用同一高度撑住，
    底部就永远是一条齐线，不会出现右半边塌下去的断层。
-   高度跟着视口走：125% 缩放下 CSS 视口只有 ~853px，写死 680px 会让整页
-   高出屏幕 211px（实测）。这里的 330px = 列上方所有固定开销（顶部两条常驻
-   横条 104 + 页头徽标/标题/说明/统计/工具条/筛选条 216 + 页脚下留白 10）
-   的实测总和，所以视口有多高，看板就正好长到屏幕底边，一屏装满不多滑一格。
+   高度跟着视口走：125% 缩放下的真实 CSS 视口只有 ~783px（不是 853——那多算了
+   浏览器 chrome 的 88 个逻辑像素，见 scripts/probe-viewport.mjs 的说明）。
+   这里的 314px = 列上方所有固定开销的**实测**总和：顶部两条常驻横条 54（MOCK 24 +
+   模式切换 31）+ 缎带 38 + 页头徽标/标题/说明/工具条/参数行 172 + 列上边距 10 +
+   页脚下留白 12。这些数字 11-14 被压过两轮之后，原来的 330 已经过期（多扣了 16px），
+   现在按实测值重算，看板正好长到屏幕底边，一屏装满不多滑一格。
    上限仍是 680px（大屏观感不变），下限 280px 保证极矮视口下列里还能看到两三张卡。 */
 .cols {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
   margin-top: 10px;
-  height: clamp(280px, calc(100vh - 330px), 680px);
+  height: clamp(280px, calc(100vh - 314px), 680px);
 }
 @media (max-width: 820px) {
   .cols { grid-template-columns: 1fr; gap: 20px; height: auto; }
@@ -299,6 +301,14 @@
   border: none;
   padding: 0;
   cursor: pointer;
+}
+/* 展开开关并进星级那一行（.meta）后不能再带上边距——那是它独占一行时的呼吸位，
+   改为推到行尾，让「危险度 / 维度 / 原文」读成一条信息而不是两块碎片。
+   这一并让单卡从 147px 降到 122px：125% 真实窗口下列内可视只有 ~404px，
+   三张 147px 的卡要 465px，第 3 张永远被裁一半；122px 时三张 378px 才装得下。 */
+.meta .toggle {
+  margin-top: 0;
+  margin-left: auto;
 }
 .toggle:hover { color: var(--ink); }
 .toggle::before { content: '▸'; font-size: 9px; }
