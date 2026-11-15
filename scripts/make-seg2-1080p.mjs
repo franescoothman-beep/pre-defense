@@ -1,23 +1,25 @@
-// scripts/make-seg2-1080p.mjs —— 把 OBS 母版缩成 1080p 成片并 ffprobe 验收
+// scripts/make-1080p.mjs —— 把 OBS 母版缩成 1080p 成片并 ffprobe 验收
 //
 // 【为什么缩而不是重录 1080p】
 // 本机物理 2560×1600，直接 1080p 录会把 CSS 视口压到 1366×726 以下，字号掉到 15.2px。
 // 文档口径是"整屏 2560×1600 录 → lanczos 缩 1920×1080"，成片正文 19.0px。
 //
-// 用法：node scripts/make-seg2-1080p.mjs "docs/recordings/2026-11-15 22-45-49.mkv"
+// 用法：
+//   node scripts/make-1080p.mjs "docs/recordings/xxx.mkv"            # 输出 xxx-1080p.mp4
+//   node scripts/make-1080p.mjs "docs/recordings/xxx.mkv" seg3       # 输出 rehearsal-seg3-1080p.mp4
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
 const src = process.argv[2];
+const tag = process.argv[3] ?? 'seg2';
 if (!src || !fs.existsSync(src)) {
-  console.error('用法：node scripts/make-seg2-1080p.mjs <母版.mkv>');
+  console.error('用法：node scripts/make-1080p.mjs <母版.mkv> [tag]');
   process.exit(1);
 }
 
 const dir = path.dirname(src);
-const base = path.basename(src, path.extname(src)).replace(/\s+/g, '-');
-const out = path.join(dir, `rehearsal-seg2-1080p.mp4`);
+const out = path.join(dir, `rehearsal-${tag}-1080p.mp4`);
 
 console.log('母版：', src);
 const t0 = Date.now();
@@ -61,5 +63,4 @@ console.log('');
 for (const [name, ok] of checks) console.log(`  ${ok ? '✔' : '✘'} ${name}`);
 console.log(`  时长 ${dur.toFixed(1)}s · ${sizeMB} MB`);
 console.log(`\n母版保留：${src}（${(fs.statSync(src).size / 1024 / 1024).toFixed(1)} MB）`);
-void base;
 process.exit(checks.every(([, ok]) => ok) ? 0 : 1);
