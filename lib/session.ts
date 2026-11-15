@@ -309,12 +309,32 @@ export function progressOf(session: SessionRow): Progress {
   const mainsEach = matrix.mainsEach;
   const qTotal = Math.min(matrix.maxTurns, personaCount * mainsEach);
 
-  const nextMainIndex = Math.min(mains, Math.max(0, qTotal - 1));
+  /**
+   * 【"第几问"要数**答完的**主问，不是"已发出"的主问】—— 2026-11-15 录制时抓到的显示 Bug
+   *
+   * `mainsDoneOf` 数的是所有 kind='question' 的 turn，**包括刚发出、还没人答的那一条**。
+   * 于是第 1 问的 turn 刚写进库，mains 就变成 1，qIndex = 2 —— 屏幕上第 1 问还挂着，
+   * 顶部却已经写着「第 2 / 3 问 · 席位 2 / 3」。
+   *
+   * 这个口径错在**语义**：qIndex 要回答的是"我现在正在答第几问"。
+   * 一条已经发出但没作答的主问，正是"当前这一问"，它不该被算成"已完成"。
+   *
+   * 为什么不在 mainsDoneOf 里改：那个函数的语义是"问到第几个了"，用在
+   * 收口判定（`mainsDone >= mainsNeeded` → 立刻出报告）与席位轮转上，
+   * 那里**必须**把刚发出的这一问算进去，否则第 3 问发出后不会收口。
+   * 两个语义需要两个数，所以在这里单独数"答完的"。
+   */
+  const mainsAnswered = turns.filter(
+    (t) => t.kind === 'question' && t.answer !== null && t.answer !== '',
+  ).length;
+  const currentMainIndex = Math.min(mainsAnswered, Math.max(0, qTotal - 1));
+
   return {
-    // qIndex 是新口径：只数主问。答完一次追问不会让"第几问"跳号。
-    qIndex: Math.min(mains + 1, qTotal || 1),
+    // qIndex 是新口径：只数主问；且只数**答完的**，正在答的这一问就是它自己。
+    qIndex: Math.min(mainsAnswered + 1, qTotal || 1),
     qTotal,
-    personaIndex: personaIndexOfMain(nextMainIndex, mainsEach, personaCount),
+    // 席位高亮跟着"正在答的那一问"走，否则第 1 问会点亮第 2 位评委
+    personaIndex: personaIndexOfMain(currentMainIndex, mainsEach, personaCount),
     personaCount,
     answered,
     mains,
