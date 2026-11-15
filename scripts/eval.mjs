@@ -43,8 +43,9 @@ const DOC_ID = argOf('doc', null);
 const RUNS = Math.max(2, Number(argOf('runs', 2) || 2));
 const OUT = argOf('out', 'docs/eval/eval-result.json');
 const ANSWER = argOf('answer',
-  '这一问我们确实考虑了。评测集是 800 条人工标注的教务问答，但确实在多轮调优中反复用过，' +
-  '存在过拟合风险，后续会切出一部分做严格意义上的测试集。推广到政务、医疗的场景，目前只有教务一个域的验证。');
+  '这一问我们确实考虑了。800 条评测集在多轮调优里反复用过，96.8% 正是调在这同一批上算的，' +
+  '存在过拟合，会切出独立留出集；检索为空时没有显式拒答阈值，当前靠提示词兜底；' +
+  '推广到政务、医疗的场景，目前只有教务一个域的验证。');
 
 if (!DOC_ID) {
   console.error('用法：node scripts/eval.mjs --doc <docId> [--runs 2] [--out docs/eval/eval-result.json]');

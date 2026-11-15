@@ -52,6 +52,44 @@ const cwd = process.cwd();
 const SEED = path.join(cwd, 'scripts', 'seed-demo-data.json');
 const DEMO_NAME = 'sample-paper.docx';
 
+/**
+ * 把库内 demo 文档各 claim 的 dimension/type 按种子对齐。
+ *
+ * 【为什么需要】planSeats（lib/prompts/personas.v1.ts）按 (dimension,type) 计数排席位，
+ * 维度按 claim 数降序。库内维度分布一旦比种子旧，席位顺序就会和 personas.json 的录制序
+ * （陈·method / 许·engineering / 周·value）错位，路由按索引对齐 fixture↔席位时
+ * 会把两位评委的 opening 判到错误席位 → 全对不上 → 评委被丢成 1 位（verify-demo-loop 报
+ * "评委数不是 3，疑似锚点失配"）。demo.mjs 旧判据只看"id 在不在"，发现不了这种分布漂移。
+ *
+ * 只 UPDATE 这两条列、不删不插：避免动到 block_idx/quote/risk 等回放锚点，
+ * 也避免重抽/真实模式下其它行的数据被误伤。
+ *
+ * @returns 对齐了的条数；0 表示本就一致；-1 表示执行失败（已回滚）。
+ */
+function syncClaimDimTypes(docId, seed) {
+  const liveRows = q.all('select id, dimension, type from claims where doc_id = ?', docId);
+  const seedById = new Map(seed.claims.map((c) => [c.id, c]));
+  const drift = [];
+  for (const r of liveRows) {
+    const s = seedById.get(String(r.id));
+    if (s && (String(r.dimension) !== s.dimension || String(r.type) !== s.type)) {
+      drift.push({ id: String(r.id), dimension: s.dimension, type: s.type });
+    }
+  }
+  if (drift.length === 0) return 0;
+  try {
+    tx(() => {
+      for (const d of drift) {
+        q.run('update claims set dimension = ?, type = ? where id = ?', d.dimension, d.type, d.id);
+      }
+    });
+    return drift.length;
+  } catch (e) {
+    console.warn('[demo] 对齐 claim dimension/type 失败（已回滚，不影响真实模式）：', e?.message ?? e);
+    return -1;
+  }
+}
+
 function seedIfMissing() {
   if (!fs.existsSync(SEED)) {
     console.warn('[demo] 未找到 seed-demo-data.json，跳过内置样例灌库（零 key 演示可能走不通）。');
@@ -78,7 +116,15 @@ function seedIfMissing() {
     const live = new Set(q.all('select id from claims where doc_id = ?', docId).map((r) => String(r.id)));
     const missing = seed.claims.filter((c) => !live.has(c.id));
     if (missing.length === 0) {
-      console.log('[demo] 内置样例已就绪，跳过灌库。');
+      // 所有 seed id 都在：额外校验维度分布是否也和种子一致。
+      // id 在 ≠ 能回放：库内 claim 的 (dimension,type) 若比种子旧，planSeats 排出的席位序
+      // 会和 personas.json 录制序错位（陈/许/周 → 落库只剩 1 位，verify-demo-loop 报锚点失配）。
+      const n = syncClaimDimTypes(docId, seed);
+      if (n > 0) {
+        console.log(`[demo] 检测到维度分布漂移（${n} 条 dimension/type 与种子不符），已按种子对齐。`);
+      } else {
+        console.log('[demo] 内置样例已就绪，跳过灌库。');
+      }
       return;
     }
     console.log(
