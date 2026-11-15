@@ -206,7 +206,26 @@ class Cdp {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** 真人节奏逐字输入：带随机间隔 + 标点后停顿 */
+/**
+ * 真人节奏逐字输入（走浏览器真实输入通道，不是 setValue）
+ *
+ * 【为什么从 setValue 改成 Input.insertText】
+ * 旧实现是 `setter.call(ta, ta.value + ch)` + 派发 `input` 构造事件 —— 那是**在 React 层面骗过去**，
+ * 浏览器并不认为发生过输入：焦点环不动、光标不闪、不触发 beforeinput/composition。
+ * 录出来只有文字在变，别的一切静止，细看就知道不是人在打。
+ *
+ * `Input.insertText` 是 CDP 的 IME 提交语义：浏览器按"输入法上屏"处理，
+ * 会走真实的 beforeinput → input 链路、移动插入符、更新选区。实测中文与 ASCII 都能进。
+ *
+ * 【为什么不用 Input.dispatchKeyEvent】
+ * 也行（实测 text='中' 能上屏），但中文没有对应的物理键位，
+ * 只能硬编一个 code，一旦哪天撞上浏览器快捷键就出怪事。insertText 没有这个风险。
+ *
+ * 【诚实的边界】这条路径不会让 Windows 屏幕上出现"软键盘"或键位叠加层——
+ * 那要有额外的 overlay 软件。它做到的是"浏览器认为是真输入"，不是"桌面上有个键盘"。
+ */
 async function typeHuman(cdp, text) {
+  // 先聚焦并清空（清空这一步仍用 setter，因为要保证起点干净）
   await cdp.eval(`(() => {
     const ta = document.querySelector('textarea.answer-input');
     if (!ta) return 'no-ta';
@@ -219,18 +238,89 @@ async function typeHuman(cdp, text) {
 
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
-    await cdp.eval(`(() => {
-      const ta = document.querySelector('textarea.answer-input');
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
-      setter.call(ta, ta.value + ${JSON.stringify(ch)});
-      ta.dispatchEvent(new Event('input', { bubbles: true }));
-      return true;
-    })()`);
+    // 真实输入通道：IME 提交一个字
+    await cdp.send('Input.insertText', { text: ch }).catch(() => {});
     let delay = 45 + Math.random() * 55; // 45–100ms/字
     if ('，。；：！？'.includes(ch)) delay += 220 + Math.random() * 180;
     if ('、'.includes(ch)) delay += 90;
     await sleep(delay);
   }
+}
+
+/**
+ * 用真实滚轮把页面滚到目标位置（而不是 window.scrollTo 瞬移）
+ *
+ * 【为什么要这么做】录屏里 scrollTo 是一步跳到位的，观众看到的是"画面突然换了"；
+ * 真人翻页是一次次 wheel 事件累积起来的，有加速感与惯性。
+ * 这里按"每次 100px、间隔 40ms"发 wheel，接近真人一次滑动。
+ */
+async function smoothScroll(cdp, targetY, step = 100, gapMs = 40) {
+  const from = Number(await cdp.eval('window.scrollY')) || 0;
+  const delta = targetY - from;
+  if (Math.abs(delta) < 4) return;
+  const dir = delta > 0 ? 1 : -1;
+  let moved = 0;
+  const total = Math.abs(delta);
+  while (moved < total) {
+    const d = Math.min(step, total - moved) * dir;
+    await cdp.send('Input.dispatchMouseEvent', {
+      type: 'mouseWheel',
+      x: 960,
+      y: 700,
+      deltaX: 0,
+      deltaY: d,
+      button: 'none',
+      buttons: 0,
+    }).catch(() => {});
+    moved += Math.abs(d);
+    await sleep(gapMs);
+  }
+}
+
+/**
+ * 窗口采集：把 OBS 的采集源指向本次脚本自己开出来的那个 Chrome 窗口
+ *
+ * 【为什么必须换成窗口采集，不能用显示器采集】
+ * 显示器采集抓的是"屏幕上最前面的东西"。第一次录段② 时，OBS 窗口和对话窗口
+ * 在录制期间被带到前台，整屏采集把它们一起录进了成片（33s 处能看到 OBS 界面与聊天窗）。
+ * 窗口采集（method=2 = WGC）只抓目标窗口**内容**，即使它被完全挡住也照抓。
+ *
+ * 【为什么按 exe 名找，而不是按标题找】
+ * 试过两条更"精确"的路，都不成：
+ *   ① 改 document.title 加唯一标记 —— OBS 的窗口列表是**静态快照**，
+ *      改完标题它不会刷新，标记永远匹配不到（实测日志：找不到标记 SEG2-xxx）。
+ *   ② 按窗口标题匹配 —— 新旧 Chrome 窗口标题可能一模一样，会抓错人。
+ * 最终用最简单的判据：**窗口列表里唯一那个 chrome.exe**。
+ * 前提是录制前把其它 Chrome 窗口都关掉（调用方负责），这样它就只可能指向脚本这个。
+ * 找不到或找到多个时**明确报警**，不静默沿用上一个源（那会静默录到别人的窗口）。
+ */
+async function pointObsAtChromeWindow(obs) {
+  const items = await obs.req('GetInputPropertiesListPropertyItems', {
+    inputName: 'Chrome窗口',
+    propertyName: 'window',
+  }).catch(() => null);
+
+  if (!items) {
+    console.log('[obs] 取不到窗口列表');
+    return false;
+  }
+
+  const chromeWins = items.propertyItems.filter((w) => /chrome\.exe/i.test(w.itemName));
+  if (chromeWins.length !== 1) {
+    console.log(`[obs] ⚠ chrome.exe 窗口有 ${chromeWins.length} 个，无法确定该抓哪个：`);
+    for (const w of chromeWins) console.log(`       ${w.itemName}`);
+    console.log('       请先关掉其它 Chrome 窗口再录');
+    return false;
+  }
+
+  const hit = chromeWins[0];
+  await obs.req('SetInputSettings', {
+    inputName: 'Chrome窗口',
+    inputSettings: { method: 2, window: hit.itemValue, capture_cursor: true, force_sdr: false },
+    overlay: true,
+  });
+  console.log(`[obs] 已绑定窗口：${hit.itemName}`);
+  return true;
 }
 
 /** 等页面真正"有内容"，而不是等一个固定秒数 */
@@ -331,6 +421,11 @@ async function main() {
   };
   const t0 = Date.now();
 
+  // 起录前把 OBS 的采集源绑到"本次这个 Chrome 窗口"。
+  //
+  // 【顺序很关键】必须先把页面导航到首页，**再**绑窗口、再开录。
+  let windowBound = false;
+
   // 记下真实视口与字号，写进时间线文件（成片字号是硬指标，随手留证）
   // 【必须等首页加载完再量】在 about:blank 上量，选择器一个都匹配不到，fontCss 会是 undefined。
   let viewport = null;
@@ -350,17 +445,28 @@ async function main() {
   };
 
   try {
+    // 先把首页导航完，再绑窗口，最后才开录（顺序错会录到上一个窗口的残留）
+    await cdp.send('Page.navigate', { url: BASE + '/' });
+    await waitRendered(cdp, `!!document.querySelector('.flow, .proof, main') && document.body.innerText.length > 200`, 25000, '首页');
+    await sleep(900);
+
+    if (obs) {
+      // 【必须在 StartRecord 之前】录制开始后再切源，成片开头会留着旧窗口的画面。
+      windowBound = await pointObsAtChromeWindow(obs);
+      await sleep(1200); // 给 WGC 一点时间建立首帧，否则开头可能是一帧黑
+      if (!windowBound) {
+        console.log('[obs] ⚠ 未绑定成功 —— 成片可能抓错窗口。建议先关掉其它 Chrome 再跑。');
+      }
+    }
+
     // ── 起录 ──
     if (obs) {
       await obs.req('StartRecord');
       console.log('[obs] 录制已启动');
-      await sleep(1200); // 留 1.2s 开头余量，剪辑时好切
+      await sleep(1400); // 留开头余量，剪辑时好切
     }
 
-    // 1) 首页
-    await cdp.send('Page.navigate', { url: BASE + '/' });
-    await waitRendered(cdp, `!!document.querySelector('.flow, .proof, main') && document.body.innerText.length > 200`, 25000, '首页');
-    await sleep(1600); // 停住让人看清 + 旁白压画面
+    await sleep(1400); // 首页停住让人看清 + 旁白压画面
     mark('首页');
 
     // 首页渲染完再量视口/字号（这时候才有可测的正文元素）
@@ -395,20 +501,42 @@ async function main() {
     mark('质疑点页');
 
     // 滚到卡片区（页面已渲染完才滚，避免滚了个空壳）
-    await cdp.eval('window.scrollTo({top: 300, behavior: "smooth"})');
-    await sleep(1600);
+    // 用真实滚轮事件而不是 window.scrollTo：录屏里滚动是有惯性、一格格走的，
+    // scrollTo 是瞬移，观感差别很明显。
+    await smoothScroll(cdp, 300);
+    await sleep(1200);
     mark('滚到质疑点卡片');
 
     // 点开一条 quote 的「展开原文」（拍手锚点①）
-    const clicked = await cdp.eval(`(() => {
+    // 同样走真实鼠标：先滚到视野中央，再移指针、按下、抬起。
+    const target = await cdp.eval(`(() => {
       const btns = [...document.querySelectorAll('button')];
       const b = btns.find(x => /展开原文|查看原文/.test(x.innerText || '') && !x.disabled);
       if (!b) return 'none:' + btns.map(x=>(x.innerText||'').trim()).filter(Boolean).slice(0,12).join('|');
       b.scrollIntoView({block:'center'});
-      b.click();
-      return 'clicked:' + (b.innerText||'').trim().slice(0,20);
+      const r = b.getBoundingClientRect();
+      return JSON.stringify({ ok: true, x: Math.round(r.x + r.width/2), y: Math.round(r.y + r.height/2) });
     })()`);
-    console.log('  quote →', clicked);
+    console.log('  quote →', typeof target === 'string' && target.startsWith('{') ? '找到按钮' : target);
+
+    if (typeof target === 'string' && target.startsWith('{')) {
+      const pos = JSON.parse(target);
+      await sleep(600); // 等滚动停稳再点，否则点到的还是旧坐标
+      const pos2 = await cdp.eval(`(() => {
+        const btns = [...document.querySelectorAll('button')];
+        const b = btns.find(x => /展开原文|查看原文/.test(x.innerText || '') && !x.disabled);
+        if (!b) return null;
+        const r = b.getBoundingClientRect();
+        return JSON.stringify({ x: Math.round(r.x + r.width/2), y: Math.round(r.y + r.height/2) });
+      })()`);
+      const p = pos2 ? JSON.parse(pos2) : pos;
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y, button: 'none', buttons: 0 });
+      await sleep(220);
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 });
+      await sleep(80);
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: 1 });
+      console.log('  已真实点击「展开原文」');
+    }
     await sleep(2800); // 让高亮与展开动画走完
     mark('点开原文高亮');
 
@@ -439,16 +567,26 @@ async function main() {
       mark(`第 ${i + 1} 问：逐字打完（${ANSWERS[i].length} 字）`);
       await sleep(700);
 
-      const r = await cdp.eval(`(() => {
+      // 【提交也走真实鼠标事件】旧实现是 `b.click()`，浏览器不会移动指针也不会有按下反馈，
+      // 画面里按钮"凭空生效"。这里先取按钮中心坐标，用 Input.dispatchMouseEvent
+      // 真发 mouseMoved → mousePressed → mouseReleased，指针会移过去、按钮有按压态。
+      const box = await cdp.eval(`(() => {
         const b = document.querySelector('button.answer-submit');
-        if (!b || b.disabled) return 'disabled';
-        b.click();
-        return 'clicked';
+        if (!b || b.disabled) return null;
+        const r = b.getBoundingClientRect();
+        if (r.width === 0) return null;
+        return JSON.stringify({ x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) });
       })()`);
-      if (r !== 'clicked') {
+      if (!box || box === 'null') {
         console.log(`  !! 第 ${i + 1} 问提交按钮不可用`);
         break;
       }
+      const { x, y } = JSON.parse(box);
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'none', buttons: 0 });
+      await sleep(160 + Math.random() * 140);
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
+      await sleep(70 + Math.random() * 60);
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1 });
       answered++;
 
       const st = await waitSubmitted(cdp, i);
@@ -464,17 +602,17 @@ async function main() {
     await sleep(4200);
     mark('报告页第一屏');
 
-    // 滚看板 → 两栏 → 复练
-    await cdp.eval('window.scrollTo({top: 620, behavior:"smooth"})');
-    await sleep(2400);
+    // 滚看板 → 两栏 → 复练（真实滚轮）
+    await smoothScroll(cdp, 620);
+    await sleep(1800);
     mark('质询风险看板');
 
-    await cdp.eval('window.scrollTo({top: 1500, behavior:"smooth"})');
-    await sleep(2600);
+    await smoothScroll(cdp, 1500);
+    await sleep(1900);
     mark('两栏');
 
-    await cdp.eval('window.scrollTo({top: document.body.scrollHeight, behavior:"smooth"})');
-    await sleep(2600);
+    await smoothScroll(cdp, 2600);
+    await sleep(1900);
     mark('复练区');
     await sleep(1500);
   } finally {
