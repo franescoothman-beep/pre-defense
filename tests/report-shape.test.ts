@@ -183,6 +183,49 @@ test('ReportOut：performance 某维写两遍 → 按维度去重，保留更保
   }
 });
 
+test('ReportOut：performance 的 dimension 写成中文 → 映射回英文，整份报告不报废', () => {
+  // 【2026-11-15 真实 key 重录报告的实测事故】
+  // REPORT_SYSTEM 里 material_risk 那行写了 "logic|evidence|depth|expression"，
+  // performance 那行只写了 "dimension": "..."，模型于是把 performance 的维度
+  // 全填成中文「证据 / 技术深度 / 逻辑链」——三条全中，zod 全拒，
+  // 一份每条评语都具体、8 条高风险、advice 到位的报告整份降级成模板。
+  //
+  // 治根是改 prompt（已经把枚举值与反例写进去），治标是这个映射：
+  // 报告是烧掉几千 token 才拿到的一次性产物，不该因为命名口径整份丢掉。
+  const r = ReportOut.safeParse({
+    material_risk: [],
+    performance: [
+      { dimension: '证据', score: 45, comment: '首问回避留出集，追问后才承认。' },
+      { dimension: '技术深度', score: 55, comment: '拒答阈值一问认了缺口。' },
+      { dimension: '逻辑链', score: 50, comment: '推广边界意识可以。' },
+    ],
+    high_risk: [],
+    advice: 'x',
+  });
+  assert.equal(r.success, true, '中文维度名必须被映射，不许整份失败');
+  if (r.success) {
+    const dims = r.data.performance.map((p) => p.dimension).sort();
+    assert.deepEqual(dims, ['depth', 'evidence', 'logic'], '三个中文名各映射到对应英文值');
+  }
+});
+
+test('ReportOut：performance 的 dimension 给完全无关的值 → 仍然拒绝（不做无根据填充）', () => {
+  const r = ReportOut.safeParse({
+    material_risk: [],
+    performance: [{ dimension: 'color', score: 40, comment: '这一条该被拒绝' }],
+    high_risk: [],
+    advice: 'x',
+  });
+  assert.equal(r.success, false, '只映射四个有确定中文名的词，别的一律拒绝');
+});
+
+test('报告 prompt 必须给出 performance 的 dimension 枚举值（否则模型必然写中文名）', () => {
+  // 这条测试守的是「治根」那一半：prompt 里没写枚举值，模型就会自由发挥。
+  const perfBlock = REPORT_SYSTEM.slice(REPORT_SYSTEM.indexOf('二、performance'));
+  assert.match(perfBlock, /logic\|evidence\|depth\|expression/, 'performance 那行必须照抄四个英文枚举值');
+  assert.match(perfBlock, /逻辑链/, '必须点出中文名是错误写法（模型对反例最敏感）');
+});
+
 test('ReportOut：high_risk 给 10 条 → 截断到 8（"前 N 条"本来就是截断语义）', () => {
   const many = Array.from({ length: 10 }, (_, i) => ({
     claim_id: `c${i}`,

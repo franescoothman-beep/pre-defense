@@ -1,5 +1,5 @@
 {
-  "notes": "MOCK 回放：评委提问（3 条，**同一场 quick 会话里的连问**，序号驱动、不按内容路由 C15）。由真实 key 跑 SSE 后从 logs/llm-capture.jsonl 落盘。",
+  "notes": "MOCK 回放：评委提问（3 条，同一场 quick 会话里的连问，序号驱动、不按内容路由 C15）。题面为真实 key 产出，逐字落盘。",
   "seq": [
     {
       "inputHash": "q1",

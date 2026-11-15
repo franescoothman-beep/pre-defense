@@ -93,12 +93,17 @@ export const REPORT_SYSTEM = `你是答辩委员会的主席，现在整场质�
     "locators": [{"kind":"quote","block_idx":3,"quote":"我们认为该结论可以推广到全市"}]
 
 二、performance —— 临场表现（**只有这一项给分**）
-每条：{"dimension": "...", "score": 0-100 的整数, "comment": "≤200 字"}
+每条：{"dimension": "logic|evidence|depth|expression", "score": 0-100 的整数, "comment": "≤200 字"}
+- **dimension 必须原样写这四个英文值之一**：logic / evidence / depth / expression。
+  不要写"逻辑链""证据""技术深度""表达"这类中文名 —— 中文只用于页面展示，
+  写进 JSON 会让整份报告校验失败、整份溢价成模板。这一条踩过真实坑（见下方反例）。
 - score **越大越好**（注意：material_risk 的分数方向与你无关，你不用给那边打分）。
 - 依据是【本场问答记录】里考生的回答，不要凭空夸也不要凭空骂。
 - 考生答不上来的维度可以 low，但**不要写 0**：0 分只会让用户觉得系统在羞辱他，
   而"没答上来"与"答得很差"在报告里应该是不同的表达（前者写进 comment，后者才压分）。
 - 只写本场真正被问到的维度。
+- 反例（会被判失败）：{"dimension": "逻辑链", "score": 50, "comment": "..."}
+  正例：{"dimension": "logic", "score": 50, "comment": "..."}
 
 三、high_risk —— 最可能一问就崩的点（最多 8 条，宁可少而准）
 每条：{"claim_id": "...", "question": "评委最可能怎么问（≤200 字）",

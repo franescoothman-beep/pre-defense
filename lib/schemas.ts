@@ -46,6 +46,41 @@ export const DimIn = z.preprocess((v) => {
   return map[t] ?? t;
 }, DIM);
 
+/**
+ * 报告的 performance 里用的维度：在 DimIn 基础上再容忍**中文维度名**。
+ *
+ * 【为什么这条容错必须有，而不是只改 prompt】
+ * 2026-11-15 用真实 key 重录报告时实测：同一份 REPORT_SYSTEM 下，material_risk 老老实实
+ * 写了英文枚举（prompt 里那一行写了 `"logic|evidence|depth|expression"`），
+ * 而 performance 那一行写的是 `"dimension": "..."`，模型就全部填成中文
+ * 「证据 / 技术深度 / 逻辑链」——三条全中，zod 全数拒绝，**整份报告报废降级成模板**。
+ * 页面上一整份高质量评语（每条都具体、8 条高风险、advice 到位）就这么没了。
+ *
+ * 两个层面同时补：
+ *   prompt 侧把枚举值与反例写清楚（治根，让模型别犯）；
+ *   这里接受中文名并映射回英文（治标，因为 report 是"已经烧掉 6000 token 才拿到"的一次性产物，
+ *   因为一个命名口径把整份丢掉，代价远大于收益）。
+ *
+ * 只映射**四个有确定中文名的词**，别的一律拒绝——不做无根据的默认填充，
+ * 这条纪律与 DimIn 上方关于 method/value 的说明是同一条。
+ */
+export const ReportDimIn = z.preprocess((v) => {
+  if (typeof v !== 'string') return v;
+  const t = v.trim();
+  const map: Record<string, string> = {
+    逻辑链: 'logic',
+    逻辑: 'logic',
+    证据: 'evidence',
+    技术深度: 'depth',
+    深度: 'depth',
+    表达: 'expression',
+  };
+  if (map[t]) return map[t];
+  const lower = t.toLowerCase();
+  const en: Record<string, string> = { method: 'depth', engineering: 'depth', value: 'expression', innovation: 'expression' };
+  return en[lower] ?? lower;
+}, DIM);
+
 /** 引用：quote 类要 8–60 字；absence 类必须给 scope（"我查了这一段，没有"） */
 export const LocatorOut = z
   .object({
@@ -255,7 +290,7 @@ export const ReportOut = z.object({
       z
         .array(
           z.object({
-            dimension: DIM,
+            dimension: ReportDimIn,
             score: z.number().min(0).max(100),
             comment: z.string().max(200).default(''),
           }),
