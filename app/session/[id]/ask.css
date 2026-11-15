@@ -360,6 +360,29 @@
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * 可点的出处条（quote）。
+ * 【为什么单独一个类而不是给 .locator 加 cursor】
+ * .locator 同时用于 absence 的 <span> —— 那是"查过、原文没有"，
+ * 没有可跳的目标。给它加 pointer 等于承诺一个不存在的动作。
+ * 所以只有真正能跳的 <button> 带 .locator-jump。
+ */
+.locator-jump {
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.locator-jump:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.locator-jump:focus-visible {
+  outline: 2px solid var(--red-line);
+  outline-offset: 1px;
+}
+
 /* 逐字命中：边框转朱红 = "这句确实在原文里" */
 .locator.is-hit {
   border-color: var(--red-line);
@@ -554,10 +577,17 @@
   background: var(--paper-2);
 }
 
+/*
+ * 页头：允许换行，每段不许被压成竖排。
+ * 320px 的栏里要塞「原文 / 当前 BLOCK n / 全篇 n 段 / 回程按钮」四样，
+ * 默认 flex 会把文字挤到断行——截图里一度出现「原」「文」上下叠、
+ * 回程按钮竖成一条的观感。窄了就整段换到第二行，比把汉字竖过来好。
+ */
 .orig-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 8px;
+  gap: 4px 8px;
   padding: 9px 12px;
   border-bottom: 1px solid var(--line);
   font-family: var(--font-mono);
@@ -567,9 +597,43 @@
   font-variant-numeric: tabular-nums;
 }
 
+.orig-head > * {
+  white-space: nowrap;
+}
+
 .orig-head b {
   color: var(--ink-2);
   font-weight: 600;
+}
+
+/*
+ * 翻到别处时，页头如实说"查看 BLOCK n"而不是"当前 BLOCK n"。
+ * 这一栏的价值全在"哪一块是评委在读的"这个事实上，
+ * 用户翻页不能让它看起来像评委换了材料。
+ */
+.orig-head-peek {
+  color: var(--ink-2);
+}
+
+/*
+ * 回程按钮：只在对不上时才出现。
+ * 方角 + 发丝线，与 .ribbon-end 同一套语法（次要动作不抢朱红实心按钮的位置）。
+ */
+.orig-back {
+  margin-left: auto;
+  padding: 2px 8px;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.orig-back:hover {
+  border-color: var(--red-line);
+  color: var(--red);
 }
 
 .orig-body {
@@ -588,9 +652,27 @@
   padding: 10px 12px;
 }
 
+/*
+ * 每一段是一整块可点的目标 —— 用 button 而不是 div + onClick。
+ * 【为什么必须用 button】键盘 Tab 能到、回车能触发、读屏会念"按钮"。
+ * 侧栏是评委最容易追问"这能点吗"的地方，点了没反应比不能点更糟。
+ */
 .orig-block {
+  display: block;
+  width: 100%;
   padding: 8px 12px;
+  border: 0;
   border-left: 2px solid transparent;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.orig-block:hover {
+  background: var(--paper-3);
+  border-left-color: var(--line-2);
 }
 
 /*
@@ -603,7 +685,14 @@
   background: var(--paper-3);
 }
 
+/* 用户翻到的那一块：中性灰竖线，明确"这是我翻的，不是评委在读的" */
+.orig-block.is-peek {
+  border-left-color: var(--dim-logic);
+  background: var(--paper-3);
+}
+
 .orig-where {
+  display: block;
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.06em;
@@ -616,7 +705,12 @@
   color: var(--red);
 }
 
+.orig-tag {
+  color: var(--red);
+}
+
 .orig-text {
+  display: block;
   font-size: 13.5px;
   line-height: 1.8;
   color: var(--ink-2);

@@ -281,7 +281,54 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const [blocks, setBlocks] = useState<DocBlock[] | null>(null);
   const [blocksError, setBlocksError] = useState<string | null>(null);
   const origRef = useRef<HTMLDivElement | null>(null);
-  const origCurRef = useRef<HTMLDivElement | null>(null);
+  const origCurRef = useRef<HTMLButtonElement | null>(null);
+
+  /**
+   * 侧栏里"我自己翻到的那一段"，null = 跟着评委走。
+   *
+   * 【为什么需要一个单独的 state，而不是直接把当前块滚过去】
+   * 侧栏有两个不同的"焦点"：评委此刻在读哪一段（跟着对话走，作者是评委），
+   * 和用户此刻想看哪一段（跟着鼠标走，作者是用户）。
+   * 前者不能因为用户翻了一下就改变——那会让人以为评委换了材料；
+   * 后者也不能被每一问的开流强行拽回去——用户正看到一半。
+   * 所以拆成两层：peek 只影响"看哪儿"，不影响任何判定。
+   *
+   * 【为什么新一轮开流要收回跟随】
+   * 录屏时评委换了段，侧栏却还停在上一轮手点的地方，看起来就像坏了。
+   * 新一问意味着"评委去读别处了"，此刻自动收回跟随最符合直觉，
+   * 而用户想再翻回来，点一下就行。
+   */
+  const [peekIdx, setPeekIdx] = useState<number | null>(null);
+
+  /** 评委此刻在读的块（来自 SSE meta），null = 还没开问 */
+  const currentBlockIdx = meta?.blockIdx ?? null;
+  /** 侧栏实际该停在的那一块 */
+  const viewIdx = peekIdx ?? currentBlockIdx;
+  /** 是否正翻在别处（决定页头显示"查看"还是"当前"、要不要给回程按钮） */
+  const isPeeking = peekIdx !== null && peekIdx !== currentBlockIdx;
+
+  /**
+   * 跳到某一段。再点同一段 = 收回跟随。
+   * 点"当前块"本身没有意义（它已经是跟随位置），所以也当作收回处理。
+   */
+  const gotoBlock = useCallback(
+    (idx: number) => {
+      setPeekIdx((prev) => (prev === idx || idx === currentBlockIdx ? null : idx));
+    },
+    [currentBlockIdx],
+  );
+
+  /**
+   * 评委换了一块读 → 收回用户的翻页。
+   *
+   * 【为什么不能把这个判断塞进 gotoBlock】
+   * gotoBlock 只在用户点的时候跑；评委换块的时机在 SSE meta 里，
+   * 那时候根本没人在点。两件事得分开写，否则"用户翻了、评委也翻了"
+   * 会看成一个事件，谁先谁后都说不清。
+   */
+  useEffect(() => {
+    setPeekIdx(null);
+  }, [currentBlockIdx]);
 
   const draftKey = sessionId && doneInfo?.turnId ? `rehearsal:draft:${sessionId}:${doneInfo.turnId}` : null;
   const esRef = useRef<EventSource | null>(null);
@@ -341,19 +388,24 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     };
   }, [docId]);
 
-  // ---------- 2.6) 让"当前这一块"停在侧栏中间 ----------
+  // ---------- 2.6) 让"正在看的那一块"停在侧栏中间 ----------
   //
   // 【为什么要居中而不是滚到顶部】
   // 用户看的是"这句话在原意里成立吗"，答案在**上下文**里 —— 前面怎么铺垫、后面怎么接。
   // 把当前块顶到最上方，前文就整块被切掉了。居中让前后两次呼吸都在视野内。
+  //
+  // 【为什么按 viewIdx 找而不是用 ref】
+  // 焦点既可能是评委在读的块，也可能是用户手点的块；ref 只能挂一个。
+  // 用 data-idx 从容器里查，两块的身份差异就只剩一个数字，逻辑不用分叉。
   useEffect(() => {
     const box = origRef.current;
-    const el = origCurRef.current;
-    if (!box || !el) return;
+    if (!box || viewIdx === null) return;
+    const el = box.querySelector<HTMLElement>(`[data-idx="${viewIdx}"]`);
+    if (!el) return;
     const boxRect = box.getBoundingClientRect();
     const elRect = el.getBoundingClientRect();
     box.scrollTop += elRect.top - boxRect.top - box.clientHeight / 2 + elRect.height / 2;
-  }, [meta?.blockIdx, blocks]);
+  }, [viewIdx, blocks]);
 
   // ---------- 3) 接 SSE 流（每次 openSeq 变化就重开一条） ----------
   useEffect(() => {
@@ -745,18 +797,31 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                       {h.locators.length > 0 ? (
                         <div className="verdict-locators">
                           <span className="verdict-label">出处</span>
-                          {h.locators.map((l, i) => (
-                            <span
-                              key={i}
-                              className={`locator locator-${l.kind}${l.verified === 1 ? ' is-hit' : ''}`}
-                              title={l.reason}
-                            >
-                              {l.kind === 'absence'
-                                ? `缺失 · 查过 ${l.scope ?? l.section ?? '未标注'}`
-                                : `BLOCK ${l.blockIdx}${l.page !== null ? ` · P${l.page}` : ''}`}
-                              {l.kind !== 'absence' && l.verified === 1 ? ' ✓' : ''}
-                            </span>
-                          ))}
+                          {h.locators.map((l, i) =>
+                            // quote 可点：点一下就把它读到侧栏正中（"一键追回原文那一句"）。
+                            // absence 不渲染成按钮 —— 它证明的是"原文里没有这句话"，
+                            // 没有可跳的目标，做成按钮等于骗人点。
+                            l.kind === 'absence' ? (
+                              <span
+                                key={i}
+                                className={`locator locator-${l.kind}${l.verified === 1 ? ' is-hit' : ''}`}
+                                title={l.reason}
+                              >
+                                {`缺失 · 查过 ${l.scope ?? l.section ?? '未标注'}`}
+                              </span>
+                            ) : (
+                              <button
+                                key={i}
+                                type="button"
+                                className={`locator locator-${l.kind} locator-jump${l.verified === 1 ? ' is-hit' : ''}`}
+                                title={l.reason}
+                                onClick={() => gotoBlock(l.blockIdx)}
+                              >
+                                {`BLOCK ${l.blockIdx}${l.page !== null ? ` · P${l.page}` : ''}`}
+                                {l.verified === 1 ? ' ✓' : ''}
+                              </button>
+                            ),
+                          )}
                         </div>
                       ) : null}
                     </article>
@@ -857,18 +922,28 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                   {verdict.locators.length > 0 ? (
                     <div className="verdict-locators">
                       <span className="verdict-label">出处</span>
-                      {verdict.locators.map((l, i) => (
-                        <span
-                          key={i}
-                          className={`locator locator-${l.kind}${l.verified === 1 ? ' is-hit' : ''}`}
-                          title={l.reason}
-                        >
-                          {l.kind === 'absence'
-                            ? `缺失 · 查过 ${l.scope ?? l.section ?? '未标注'}`
-                            : `BLOCK ${l.blockIdx}${l.page !== null ? ` · P${l.page}` : ''}`}
-                          {l.kind !== 'absence' && l.verified === 1 ? ' ✓' : ''}
-                        </span>
-                      ))}
+                      {verdict.locators.map((l, i) =>
+                        l.kind === 'absence' ? (
+                          <span
+                            key={i}
+                            className={`locator locator-${l.kind}${l.verified === 1 ? ' is-hit' : ''}`}
+                            title={l.reason}
+                          >
+                            {`缺失 · 查过 ${l.scope ?? l.section ?? '未标注'}`}
+                          </span>
+                        ) : (
+                          <button
+                            key={i}
+                            type="button"
+                            className={`locator locator-${l.kind} locator-jump${l.verified === 1 ? ' is-hit' : ''}`}
+                            title={l.reason}
+                            onClick={() => gotoBlock(l.blockIdx)}
+                          >
+                            {`BLOCK ${l.blockIdx}${l.page !== null ? ` · P${l.page}` : ''}`}
+                            {l.verified === 1 ? ' ✓' : ''}
+                          </button>
+                        ),
+                      )}
                     </div>
                   ) : null}
                 </section>
@@ -953,10 +1028,19 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
               <aside className="orig" aria-label="原文全篇">
                 <div className="orig-head">
                   <b>原文</b>
-                  {meta && meta.blockIdx !== null && meta.blockIdx !== undefined ? (
-                    <span>· 当前 BLOCK {meta.blockIdx}</span>
+                  {isPeeking && viewIdx !== null ? (
+                    <span className="orig-head-peek">· 查看 BLOCK {viewIdx}</span>
+                  ) : currentBlockIdx !== null ? (
+                    <span>· 当前 BLOCK {currentBlockIdx}</span>
                   ) : null}
                   {blocks ? <span>· 全篇 {blocks.length} 段</span> : null}
+                  {/* 回程按钮只在"翻到别处"时出现：没翻的时候它无处可回，
+                      出现反而让人以为可以点（点了什么也不会发生） */}
+                  {isPeeking ? (
+                    <button className="orig-back" type="button" onClick={() => setPeekIdx(null)}>
+                      回到评委正在读的
+                    </button>
+                  ) : null}
                 </div>
                 <div className="orig-body" ref={origRef}>
                   {blocksError ? (
@@ -967,30 +1051,37 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                     <p className="orig-empty">这份材料没有可显示的原文段落。</p>
                   ) : (
                     blocks.map((b) => {
-                      const isNow = meta?.blockIdx === b.idx;
-                      // 当前块里把命中句挑出来标红：光有"这一段"还不够，
-                      // 要让评委一眼看到"是哪一句被引用了"。纯文本切分，不塞 HTML。
+                      const isNow = currentBlockIdx === b.idx;
+                      const isView = viewIdx === b.idx;
+                      // 命中句只在"评委正在读的那一块"里标：翻到别处看上下文时，
+                      // 整篇里到处亮着同一句话会让人分不清哪一句是这一问的依据。
                       const [pre, hit, post] =
                         isNow && meta?.locatorKind === 'quote' && meta?.source
                           ? splitByQuote(b.text, anchorQuote(meta, b.text))
                           : ([b.text, '', ''] as [string, string, string]);
                       return (
-                        <div
+                        <button
                           key={b.idx}
-                          className={`orig-block${isNow ? ' is-now' : ''}`}
-                          ref={isNow ? origCurRef : null}
+                          type="button"
+                          data-idx={b.idx}
+                          ref={isView ? origCurRef : null}
+                          className={`orig-block${isNow ? ' is-now' : ''}${isView && !isNow ? ' is-peek' : ''}`}
+                          aria-current={isView ? 'true' : undefined}
+                          title={isNow ? '评委此刻在读这一段' : `跳到 BLOCK ${b.idx}`}
+                          onClick={() => gotoBlock(b.idx)}
                         >
-                          <div className="orig-where">
+                          <span className="orig-where">
                             BLOCK {b.idx}
                             {b.page !== null ? ` · P${b.page}` : ''}
                             {b.section ? ` · ${b.section}` : ''}
-                          </div>
-                          <p className="orig-text">
+                            {isNow ? <span className="orig-tag">· 评委在读</span> : null}
+                          </span>
+                          <span className="orig-text">
                             {pre}
                             {hit ? <span className="hi">{hit}</span> : null}
                             {post}
-                          </p>
-                        </div>
+                          </span>
+                        </button>
                       );
                     })
                   )}
