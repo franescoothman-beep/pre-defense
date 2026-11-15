@@ -195,6 +195,48 @@ export function loadTurns(sessionId: string): TurnRow[] {
 }
 
 /**
+ * 一格 turn 该署谁的名 —— 带悬空回推。
+ *
+ * 【为什么需要回推】
+ * 旧版本建新会话时执行 `delete from personas where doc_id = ?`，把这份材料
+ * **所有历史人设**一起删了。于是旧会话的 turns 里 persona_id 指向不存在的行，
+ * 报告页审议轨迹统一显示「评委」——署名丢了。
+ * （2026-11-15 修：写侧只清 `session_id is null` 的遗留行，此后新会话不再互相破坏；
+ * 但**已经被删掉的行回不来**，读侧必须能兜。）
+ *
+ * 回推不是猜：persona 席位是状态机按主问序号轮转的（personaIndexOfMain），
+ * 同一条规则当初把 persona_id 写进 turn —— 按同一条规则从 turn 的位置把席位算回来，
+ * 得到的就是当初写入的那一位。两级兜底：
+ *   ① persona_id 能对上本场人设 → 用它（正常路径，零成本）
+ *   ② 对不上 → 数到这条 turn 为止的主问序号 → personaIndexOfMain 回推席位
+ * 都不行才返回 null，由展示层写「评委」。
+ */
+export function personaOfTurn(
+  turn: Pick<TurnRow, 'seq' | 'kind' | 'personaId' | 'round'>,
+  turns: TurnRow[],
+  personas: PersonaRow[],
+  mainsEach: number,
+): PersonaRow | null {
+  if (personas.length === 0) return null;
+  const direct = personas.find((p) => p.id === turn.personaId);
+  if (direct) return direct;
+
+  // 数到这条 turn（含）为止的主问条数 → 这是第几个主问（0 起）
+  let mainIndex = -1;
+  for (const t of turns) {
+    if (t.kind !== 'question') continue;
+    if (t.seq > turn.seq) break;
+    mainIndex += 1;
+  }
+  if (mainIndex < 0) {
+    // 这条 turn 自己不是主问、且它之前没有主问（异常数据）→ 不回推，如实返回 null
+    return null;
+  }
+  const seat = personaIndexOfMain(mainIndex, mainsEach, personas.length);
+  return personas[seat] ?? null;
+}
+
+/**
  * 这份材料总共有多少可扫读的文本块。
  *
  * 用途：L5 扫读原文思考态要显示 `BLOCK 19/42` —— 42 就是这个值。
@@ -331,7 +373,13 @@ export function currentQuestion(session: SessionRow): CurrentQuestion | null {
   const progress = progressOf(session);
 
   if (pending) {
-    const persona = personas.find((p) => p.id === pending.personaId) ?? personas[0];
+    // 【不许静默退第 0 位】人设行被删（旧版本建新会话整批清材料人设）时，
+    // `find(...) ?? personas[0]` 会把许教授的待答问题标成陈评委——
+    // 署名、扫读锚点、追问归属全部挂错人。personaOfTurn 按当初写入的
+    // 同一条席位轮转规则回推；推不出来才退第 0 位（这已是最后的兜底，
+    // 且只发生在"连状态机都算不出席位"的异常数据里）。
+    const persona =
+      personaOfTurn(pending, turns, personas, matrix.mainsEach) ?? personas[0];
     return {
       persona,
       claimId: pending.targetClaimId,

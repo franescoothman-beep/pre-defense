@@ -11,7 +11,7 @@
 
 import { q } from '@/lib/db';
 import { reportPayloadOf, DIMENSION_LABEL, boardOf, overallOfCells, overallScoreOf } from '@/lib/report';
-import { loadSession, loadPersonas, loadTurns, loadClaimsOfDoc } from '@/lib/session';
+import { loadSession, loadPersonas, loadTurns, loadClaimsOfDoc, personaOfTurn } from '@/lib/session';
 import { MODE_MATRIX, mainsDoneOf, mainsNeededOf } from '@/lib/state';
 import { isMockMode } from '@/lib/demo';
 
@@ -42,17 +42,23 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   const claimById = new Map(claims.map((c) => [c.id, c]));
 
   // 审议轨迹：按评委顺序列出「谁问了什么、我怎么答的、给了几分」
+  //
+  // 【署名带悬空回推】旧版本建新会话会删掉这份材料全部历史人设，
+  // 旧会话 turns.persona_id 指向不存在的行 → 这里原来一律显示「评委」。
+  // personaOfTurn 按状态机的席位轮转规则把席位从 turn 的位置算回来（不是猜），
+  // 当初怎么写入的、现在就怎么推回来。正常 turn 仍走 persona_id 精确匹配。
+  const mainsEachQuick = matrix.mainsEach;
   const trajectory = turns
     .filter((t) => t.question !== '')
     .map((t) => {
-      const p = personas.find((x) => x.id === t.personaId);
+      const p = personaOfTurn(t, turns, personas, mainsEachQuick);
       const c = t.targetClaimId ? claimById.get(t.targetClaimId) : null;
       return {
         turnId: t.id,
         seq: t.seq,
         round: t.round,
         kind: t.kind,
-        personaId: t.personaId,
+        personaId: p?.id ?? t.personaId,
         personaName: p?.name ?? '评委',
         dimension: p?.dimension ?? null,
         question: t.question,

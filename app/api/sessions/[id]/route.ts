@@ -25,7 +25,9 @@ import {
   loadAnchor,
   progressOf,
   currentQuestion,
+  personaOfTurn,
   type TurnRow,
+  type PersonaRow,
 } from '@/lib/session';
 import { MODE_MATRIX } from '@/lib/state';
 import { q } from '@/lib/db';
@@ -74,8 +76,6 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     dimensionMissing: p.dimension === null,
   }));
 
-  const personaById = new Map(personas.map((p) => [p.id, p]));
-
   return Response.json({
     ok: true,
     sessionId: session.id,
@@ -90,7 +90,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     progress,
     currentPersonaId,
     pastPersonaIds,
-    history: turns.map((t) => toHistoryItem(t, personaById)),
+    history: turns.map((t) => toHistoryItem(t, personas, turns, matrix.mainsEach)),
   });
 }
 
@@ -101,9 +101,17 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
  * 它们在库里是 JSON 字符串（评分时原样存下来的）。若把字符串直接给前端，
  * 前端就得自己 JSON.parse 一遍——那是"把库的存储格式泄漏到展示层"，
  * 下次换存储格式前端就得跟着改。解析放在服务端，前端只拿结构化数据。
+ *
+ * 【署名带悬空回推】旧版本建新会话会删掉这份材料全部历史人设，旧会话打开时
+ * 每条历史都显示「评委」。personaOfTurn 按当初写入的同一条席位轮转规则把席位推回来。
  */
-function toHistoryItem(t: TurnRow, personaById: Map<string, { id: string; name: string; dimension: string | null; color: string }>) {
-  const p = personaById.get(t.personaId);
+function toHistoryItem(
+  t: TurnRow,
+  personas: PersonaRow[],
+  turns: TurnRow[],
+  mainsEach: number,
+) {
+  const p = personaOfTurn(t, turns, personas, mainsEach);
   const anchor = t.targetClaimId ? loadAnchor(t.targetClaimId) : null;
   return {
     turnId: t.id,

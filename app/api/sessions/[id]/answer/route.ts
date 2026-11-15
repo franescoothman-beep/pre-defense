@@ -19,7 +19,7 @@
 
 import { q } from '@/lib/db';
 import { callLLM, LlmError, budgetLeft } from '@/lib/llm';
-import { loadSession, loadTurns, loadPersonas, loadClaimsOfDoc, loadAnchor, askedClaimIdsOf, loadBlocksOfDoc } from '@/lib/session';
+import { loadSession, loadTurns, loadPersonas, loadClaimsOfDoc, loadAnchor, askedClaimIdsOf, loadBlocksOfDoc, personaOfTurn } from '@/lib/session';
 import { EVALUATE_SYSTEM, buildEvaluateUser, EvaluateSchema, scoreToPercent } from '@/lib/prompts/evaluate.v1';
 import { gradeLocators, verifiedOkOf, validateFollowup, roundOfSeq } from '@/lib/grade';
 import { decide, MODE_MATRIX, judgesOf, mainsDoneOf, mainsNeededOf, FALLBACK_FOLLOWUP, type Turn } from '@/lib/state';
@@ -96,14 +96,34 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   // ---------- 1) 取上下文：谁在问、问什么、依据在哪 ----------
+  //
+  // 【署名带悬空回推，不许静默退第 0 位】
+  // 旧写法 `personas.find(...) ?? personas[0]`：人设行一旦被删（旧版本建新会话
+  // 会整批删光这份材料的全部历史人设），这里就**静默地把许教授判成陈评委**——
+  // 分数、缺口、追问的署名全部挂错人，还是无声无息地挂错。
+  // personaOfTurn 按当初写入的同一条席位轮转规则把席位推回来；
+  // 推不出来才 409，把问题摆到台面上而不是错着走下去。
+  const matrix = MODE_MATRIX[session.mode] ?? MODE_MATRIX.quick;
   const personas = loadPersonas(session.id, session.docId);
-  const persona = personas.find((p) => p.id === String(turnRow.persona_id)) ?? personas[0];
+  const turnRowShaped = {
+    seq: Number(turnRow.seq),
+    round: Number(turnRow.round),
+    kind: String(turnRow.kind),
+    personaId: String(turnRow.persona_id),
+  };
+  const persona = personaOfTurn(
+    turnRowShaped,
+    loadTurns(session.id),
+    personas,
+    matrix.mainsEach,
+  );
   if (!persona) {
     return Response.json(
-      { ok: false, code: 'E_NO_PERSONA', message: '这场会话没有评委数据，请重新创建会话。' },
+      { ok: false, code: 'E_NO_PERSONA', message: '这场会话的评委数据对不上号（人设行缺失且无法按席位回推），请重新创建会话。' },
       { status: 409 },
     );
   }
+  const judgesActual = Math.min(personas.length || judgesOf({ mode: session.mode }), judgesOf({ mode: session.mode }));
 
   const targetClaimId = turnRow.target_claim_id === null || turnRow.target_claim_id === undefined
     ? null
@@ -125,9 +145,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const followupsSoFar = turnsBefore.filter(
     (t) => t.round === Number(turnRow.round) && t.kind === 'followup',
   ).length;
-
-  const matrix = MODE_MATRIX[session.mode] ?? MODE_MATRIX.quick;
-  const judgesActual = Math.min(personas.length || judgesOf({ mode: session.mode }), judgesOf({ mode: session.mode }));
 
   // ---------- 2) 判分 ----------
   let out;

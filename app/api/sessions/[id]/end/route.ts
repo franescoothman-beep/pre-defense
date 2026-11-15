@@ -16,7 +16,7 @@
 
 import { q, tx } from '@/lib/db';
 import { callLLM, LlmError } from '@/lib/llm';
-import { loadSession, loadPersonas, loadTurns, loadClaimsOfDoc, loadBlocksOfDoc, loadAnchor } from '@/lib/session';
+import { loadSession, loadPersonas, loadTurns, loadClaimsOfDoc, loadBlocksOfDoc, loadAnchor, personaOfTurn } from '@/lib/session';
 import { REPORT_SYSTEM, buildReportUser, ReportSchema } from '@/lib/prompts/report.v1';
 import { attachReportLocator } from '@/lib/locator';
 import {
@@ -98,7 +98,9 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   for (const t of turns) {
     // 只算真的问出来的（question 非空的 turn）；空占位不算覆盖
     if (t.question === '') continue;
-    const p = personas.find((x) => x.id === t.personaId);
+    // 【署名带悬空回推】旧版本建新会话会删历史人设，旧 turn 的 persona_id 可能悬空；
+    // personaOfTurn 按当初写入的同一条席位轮转规则把席位推回来
+    const p = personaOfTurn(t, turns, personas, matrix.mainsEach);
     if (p?.dimension) askedDims.add(p.dimension as Dimension);
   }
 
@@ -112,7 +114,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   const turnsForModel = turns
     .filter((t) => t.question !== '' && (t.answer !== null || t.kind === 'question'))
     .map((t) => ({
-      personaName: personas.find((p) => p.id === t.personaId)?.name ?? '评委',
+      personaName: personaOfTurn(t, turns, personas, matrix.mainsEach)?.name ?? '评委',
       question: t.question,
       answer: t.answer,
       score: t.score,

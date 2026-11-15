@@ -15,7 +15,7 @@
 // 不写任何"进度指针"——指针是能在崩溃后失步的，而 turns 表是事实。
 
 import { q } from '@/lib/db';
-import { loadSession, loadPersonas, loadTurns, judgeCountOf } from '@/lib/session';
+import { loadSession, loadPersonas, loadTurns, judgeCountOf, personaOfTurn } from '@/lib/session';
 import { MODE_MATRIX, judgesOf, mainsDoneOf, mainsNeededOf, personaIndexOfMain } from '@/lib/state';
 
 export const dynamic = 'force-dynamic';
@@ -55,7 +55,9 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     (t) => (t.answer === null || t.answer === '') && t.question !== null && t.question !== '',
   );
   if (pending) {
-    const p = personas.find((x) => x.id === pending.personaId) ?? personas[0];
+    // 【不许静默退第 0 位】人设行被删时 find 会 miss，旧写法会把待答问题
+    // 硬挂到第一位评委头上。personaOfTurn 按席位轮转规则回推（见 lib/session.ts）。
+    const p = personaOfTurn(pending, turns, personas, matrix.mainsEach) ?? personas[0];
     return Response.json({
       ok: true,
       state: session.state,

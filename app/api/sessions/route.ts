@@ -196,12 +196,19 @@ async function handleCreate(req: Request): Promise<Response> {
 
   const personaRows: PersonaRow[] = [];
   tx(() => {
-    // 【必须先清掉这位材料上一轮的人设】
-    // personas 是按 doc_id 存的。若不清，用户在同一份材料上开第二场会话时，
-    // 表里会有 3+3=6 条、第三场 9 条……而 lib/session.ts 取"当前第几位评委"是按
-    // 这份材料的 personas 列表取模的 —— 多出来的旧人设会让评委轮转彻底错位
-    // （表现为"第 2 问还是第一位评委在问"）。人设属于"当前这一场"，不属于材料。
-    q.run(`delete from personas where doc_id = ?`, docId);
+    // 【只清"没有挂会话"的遗留人设，绝不碰历史会话的人设】
+    //
+    // 旧版本这里写的是 `delete from personas where doc_id = ?`：
+    //   当时人设按 doc_id 存（还没有 session_id 列），同一份材料开第二场会话会积 3+3=6 条，
+    //   取"当前第几位评委"按材料取模就会轮转错位 —— 所以整批清空。
+    //   代价是**旧会话的 turns.persona_id 变成悬空外键**：报告页审议轨迹全部显示「评委」。
+    //   （2026-11-15 实测踩中：session 539746c6 的 seq1/seq2 署名丢失。）
+    //
+    // 现在人设写入时一定带 session_id，读取（loadPersonas）第一级就按 session_id 取，
+    // 多场并存不会互相污染 —— 整批删除的前提已经不存在了。
+    // 唯一还需要清的是迁移前的遗留行（session_id 为 NULL）：它们不属于任何一场，
+    // 留着只会让 loadPersonas 的第②级兜底捞到错误批次。
+    q.run(`delete from personas where doc_id = ? and session_id is null`, docId);
 
     q.run(
       `insert into sessions(id, doc_id, mode, drill_from, state, started_at, ended_at)
