@@ -268,6 +268,30 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const [pendingHistory, setPendingHistory] = useState<HistoryItem[]>([]);
 
   /**
+   * 已答记录里"被展开的那几条"，以及"是否全部展开"。
+   *
+   * 【为什么默认折叠】
+   * 2026-11-15 录制前实测（视口 900）：只答过 2 轮，`.history` 就已经 614px 高，
+   * 加上问题卡、扫读区，作答框被顶到 1190px —— **整屏之外**。
+   * 五轮下来历史区自己就超过一屏，"评委问→我答"的现场反而要滚半天才看得见。
+   *
+   * 折叠后每条只占一行（第 N 问 · 评委 · 追问 · 分数），
+   * 一屏里同时看得到"当前问题 + 扫读 + 作答框"；
+   * 想回看原文要点开哪条就点哪条，不影响正在进行的这一问。
+   */
+  const [openTurns, setOpenTurns] = useState<Set<string>>(new Set());
+  const [expandHistory, setExpandHistory] = useState(false);
+
+  const toggleTurn = useCallback((turnId: string) => {
+    setOpenTurns((prev) => {
+      const next = new Set(prev);
+      if (next.has(turnId)) next.delete(turnId);
+      else next.add(turnId);
+      return next;
+    });
+  }, []);
+
+  /**
    * 这份材料的全篇段落（右侧原文侧栏用）。
    *
    * 【为什么整篇都取下来】
@@ -766,72 +790,107 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                     放在当前问题之上，因为观众读的顺序就是"前面问过什么、我怎么答的"。 */}
               {history.length > 0 ? (
                 <section className="history" aria-label="已答记录">
-                  {history.map((h) => (
-                    <article key={h.turnId} className="hist-item">
-                      <div className="hist-q">
-                        <span className="hist-seq">第 {h.round} 问</span>
-                        {h.kind === 'followup' ? <span className="turn-followup">追问</span> : null}
-                        <span className="hist-who">{h.personaName ?? '评委'}</span>
-                      </div>
-                      <p className="hist-qtext">{h.question}</p>
-                      {h.answer ? (
-                        <div className="hist-a">
-                          <span className="hist-a-label">我的回答</span>
-                          <p className="hist-atext">{h.answer}</p>
-                        </div>
-                      ) : null}
-                      {h.score !== null ? (
-                        <div className="hist-score">
-                          <span className="hist-score-num">{h.score}</span>
-                          <span className="hist-score-of">/ 5</span>
-                          {h.verifiedOk !== null ? (
-                            <span className={`verdict-verified${h.verifiedOk ? ' is-ok' : ' is-bad'}`}>
-                              {h.verifiedOk ? '✓ 出处已机检' : '出处未命中'}
-                            </span>
-                          ) : null}
-                        </div>
-                      ) : null}
-                      {h.gaps.length > 0 ? (
-                        <ul className="verdict-gaps">
-                          {h.gaps.map((g, i) => (
-                            <li key={i}>{g}</li>
-                          ))}
-                        </ul>
-                      ) : null}
-                      {/* 出处条跟着一起留存：判分卡被收进历史后，"这一答引了哪几句原文"
-                          不能随之消失 —— 那是本作品溯源能力的展示面 */}
-                      {h.locators.length > 0 ? (
-                        <div className="verdict-locators">
-                          <span className="verdict-label">出处</span>
-                          {h.locators.map((l, i) =>
-                            // quote 可点：点一下就把它读到侧栏正中（"一键追回原文那一句"）。
-                            // absence 不渲染成按钮 —— 它证明的是"原文里没有这句话"，
-                            // 没有可跳的目标，做成按钮等于骗人点。
-                            l.kind === 'absence' ? (
-                              <span
-                                key={i}
-                                className={`locator locator-${l.kind}${l.verified === 1 ? ' is-hit' : ''}`}
-                                title={l.reason}
-                              >
-                                {`缺失 · 查过 ${l.scope ?? l.section ?? '未标注'}`}
-                              </span>
-                            ) : (
-                              <button
-                                key={i}
-                                type="button"
-                                className={`locator locator-${l.kind} locator-jump${l.verified === 1 ? ' is-hit' : ''}`}
-                                title={l.reason}
-                                onClick={() => gotoBlock(l.blockIdx)}
-                              >
-                                {`BLOCK ${l.blockIdx}${l.page !== null ? ` · P${l.page}` : ''}`}
-                                {l.verified === 1 ? ' ✓' : ''}
-                              </button>
-                            ),
-                          )}
-                        </div>
-                      ) : null}
-                    </article>
-                  ))}
+                  {/* 折叠 / 展开全部：默认全折叠，让"当前问题 + 作答框"留在首屏。
+                      为什么不是分页或只留最近两条：历史是留存证据，
+                      评委追问时经常要指着三轮前那句话，全都在、按需展开最稳。 */}
+                  <div className="hist-bar">
+                    <span className="hist-bar-label">已答 {history.length} 条</span>
+                    <button
+                      className="hist-toggle-all"
+                      type="button"
+                      onClick={() => setExpandHistory((v) => !v)}
+                    >
+                      {expandHistory ? '全部收起' : '全部展开'}
+                    </button>
+                  </div>
+                  {history.map((h) => {
+                    // 展开态 = 用户点了这一条，或点了「全部展开」
+                    const open = expandHistory || openTurns.has(h.turnId);
+                    return (
+                      <article key={h.turnId} className={`hist-item${open ? ' is-open' : ''}`}>
+                        {/* 折叠时这一行就是全部可见内容：第几问、谁问的、是不是追问、得了多少分。
+                            信息密度足够确认"这是哪一轮"，又不占竖向空间。 */}
+                        <button
+                          className="hist-row"
+                          type="button"
+                          aria-expanded={open}
+                          onClick={() => toggleTurn(h.turnId)}
+                        >
+                          <span className="hist-seq">第 {h.round} 问</span>
+                          {h.kind === 'followup' ? <span className="turn-followup">追问</span> : null}
+                          <span className="hist-who">{h.personaName ?? '评委'}</span>
+                          <span className="hist-row-score">
+                            {h.score !== null ? `${h.score} / 5` : '未判分'}
+                          </span>
+                          <span className="hist-caret" aria-hidden="true">
+                            {open ? '−' : '+'}
+                          </span>
+                        </button>
+
+                        {open ? (
+                          <div className="hist-body">
+                            <p className="hist-qtext">{h.question}</p>
+                            {h.answer ? (
+                              <div className="hist-a">
+                                <span className="hist-a-label">我的回答</span>
+                                <p className="hist-atext">{h.answer}</p>
+                              </div>
+                            ) : null}
+                            {h.score !== null ? (
+                              <div className="hist-score">
+                                <span className="hist-score-num">{h.score}</span>
+                                <span className="hist-score-of">/ 5</span>
+                                {h.verifiedOk !== null ? (
+                                  <span className={`verdict-verified${h.verifiedOk ? ' is-ok' : ' is-bad'}`}>
+                                    {h.verifiedOk ? '✓ 出处已机检' : '出处未命中'}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : null}
+                            {h.gaps.length > 0 ? (
+                              <ul className="verdict-gaps">
+                                {h.gaps.map((g, i) => (
+                                  <li key={i}>{g}</li>
+                                ))}
+                              </ul>
+                            ) : null}
+                            {/* 出处条跟着一起留存：判分卡被收进历史后，"这一答引了哪几句原文"
+                                不能随之消失 —— 那是本作品溯源能力的展示面 */}
+                            {h.locators.length > 0 ? (
+                              <div className="verdict-locators">
+                                <span className="verdict-label">出处</span>
+                                {h.locators.map((l, i) =>
+                                  // quote 可点：点一下就把它读到侧栏正中（"一键追回原文那一句"）。
+                                  // absence 不渲染成按钮 —— 它证明的是"原文里没有这句话"，
+                                  // 没有可跳的目标，做成按钮等于骗人点。
+                                  l.kind === 'absence' ? (
+                                    <span
+                                      key={i}
+                                      className={`locator locator-${l.kind}${l.verified === 1 ? ' is-hit' : ''}`}
+                                      title={l.reason}
+                                    >
+                                      {`缺失 · 查过 ${l.scope ?? l.section ?? '未标注'}`}
+                                    </span>
+                                  ) : (
+                                    <button
+                                      key={i}
+                                      type="button"
+                                      className={`locator locator-${l.kind} locator-jump${l.verified === 1 ? ' is-hit' : ''}`}
+                                      title={l.reason}
+                                      onClick={() => gotoBlock(l.blockIdx)}
+                                    >
+                                      {`BLOCK ${l.blockIdx}${l.page !== null ? ` · P${l.page}` : ''}`}
+                                      {l.verified === 1 ? ' ✓' : ''}
+                                    </button>
+                                  ),
+                                )}
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </article>
+                    );
+                  })}
                 </section>
               ) : null}
 

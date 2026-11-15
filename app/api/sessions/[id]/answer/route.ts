@@ -169,6 +169,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       }),
       schema: EvaluateSchema,
       temperature: 0.2,
+      // 这是本场第几次判分（0 起），由库里已答完的轮次条数推导。
+      // 【为什么不能用 mock 内存游标】见 lib/llm.ts 的 takeSeq 注释：进程重启即归零，
+      // 会把 a1 的追问再演一遍。库里已有几答是事实，重启不会改变它。
+      // turnsBefore 是本次判分前取的，当前这一问此时 answer 还是空的，所以数出来的
+      // 正好是"我前面答过几次"。
+      replaySeq: turnsBefore.filter((t) => String(t.answer ?? '') !== '').length,
     });
   } catch (e) {
     const err = e as LlmError;

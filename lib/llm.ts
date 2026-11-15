@@ -251,6 +251,20 @@ type CallInput = {
   /** 温度；判定类任务用低温 */
   temperature?: number;
   /**
+   * mock 回放序号（0 起）。给了就用它，不再读内存游标。
+   *
+   * 【为什么必须有这个字段】
+   * 内存游标挂在 globalThis 上，只活到进程结束。真踩过：一场会话问到第 2 问之前，
+   * 我为了改代码重启了 dev server —— 游标归零，第 2 问又取回 q1，
+   * 屏幕上就出现「许教授问的却是陈评委那句话」。录制时中途重启服务是常态
+   * （改样式、清库、看日志），这条路径必须不依赖进程状态。
+   *
+   * 所以「这是第几问」改由调用方从库里推导（已问过几问 / 已判过几答），
+   * 重启、热重载、多 worker 都不会错位。不传时仍然退回内存游标，
+   * 供 claims / personas 这类「一次性、同请求内连续」的 phase 使用。
+   */
+  replaySeq?: number;
+  /**
    * 取消信号（流式专用）。客户端断开 SSE 连接时，路由拿它的 signal 传进来，
    * 让这里能直接掐掉上游请求——否则上游会继续跑满 30s 超时并继续消耗预算。
    */
@@ -371,6 +385,10 @@ async function callReal(input: CallInput): Promise<{ data: unknown; meta: CallMe
  * 2) 挂在 globalThis：Next 开发服务器在热重载 / 多 worker 时会重新求值 lib/llm.ts，
  *    模块顶层的 `const mockCursor = new Map()` 随之被重建，游标归零 → 多个 question 都取回 q1。
  *    与 lib/db.ts 的 `__db` 单例同理，把游标存到 globalThis 才能跨重载存活。
+ * 3) **但 globalThis 也扛不住进程重启**。录制时改样式、清库、看日志都会重启 dev server，
+ *    重启后游标归零 → 第 2 问又回放 q1（真踩过：许教授问的却是陈评委那句话）。
+ *    所以 question / evaluate 这两个「按轮次推进」的 phase 由调用方传 `replaySeq`，
+ *    从库里已问/已答的条数推导（见 CallInput.replaySeq 的注释）。游标只剩兜底作用。
  */
 const g = globalThis as unknown as { __mockCursor?: Map<string, number> };
 const mockCursor = g.__mockCursor ?? (g.__mockCursor = new Map<string, number>());
@@ -389,12 +407,29 @@ export function resetMockCursor(sessionKey: string): void {
   }
 }
 
-async function callMock(input: CallInput): Promise<{ data: unknown; meta: CallMeta }> {
-  const { loadFixture, loadAll } = await import('./mock');
-  const all = loadAll(input.phase);
+/**
+ * 取这次回放该用第几条。
+ *
+ * 优先用调用方给的 `replaySeq`（从库里推导的「第几问 / 第几答」），
+ * 否则退回进程内存游标。两条路都会把游标推进到 seq+1，
+ * 这样同一进程内后续不传 replaySeq 的调用仍然接得上。
+ */
+function takeSeq(input: CallInput): number {
+  if (typeof input.replaySeq === 'number' && Number.isFinite(input.replaySeq)) {
+    const forced = Math.max(0, Math.floor(input.replaySeq));
+    mockCursor.set(`${input.sessionKey}:${input.phase}`, forced + 1);
+    return forced;
+  }
   const key = `${input.sessionKey}:${input.phase}`;
   const seq = mockCursor.get(key) ?? 0;
   mockCursor.set(key, seq + 1);
+  return seq;
+}
+
+async function callMock(input: CallInput): Promise<{ data: unknown; meta: CallMeta }> {
+  const { loadFixture, loadAll } = await import('./mock');
+  const all = loadAll(input.phase);
+  const seq = takeSeq(input);
 
   /**
    * 【耗尽时循环回放，而不是报 E_MOCK_MISS】
@@ -488,9 +523,7 @@ async function* streamBody(input: CallInput): AsyncGenerator<string, { data: unk
   if (isMock()) {
     const { loadFixture, loadAll } = await import('./mock');
     const all = loadAll(input.phase);
-    const key = `${input.sessionKey}:${input.phase}`;
-    const seq = mockCursor.get(key) ?? 0;
-    mockCursor.set(key, seq + 1);
+    const seq = takeSeq(input);
 
     // 与 callMock 同一套策略：耗尽则循环回放（序号驱动下是自洽的），
     // 只有"一条 fixture 都没有"才报 E_MOCK_MISS。原因见 callMock 里的长注释。

@@ -321,6 +321,12 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
           schema: QuestionSchema,
           temperature: 0.4,
           signal: controller.signal,
+          // 这是本场第几问（0 起），由库里已完成的主问条数推导。
+          // 【为什么不能用 mock 内存游标】游标活在进程内存里，dev server 一重启就归零，
+          // 于是第 2 问又回放 q1 —— 屏幕上出现「许教授问的却是陈评委那句话」。
+          // 录制中途重启服务是常态，序号必须从库里来。round 已经是 mainsDone+1，
+          // 所以这里直接减 1；非 mock 时这个字段被忽略。
+          replaySeq: round - 1,
         });
 
         while (!iterDone && !closed) {

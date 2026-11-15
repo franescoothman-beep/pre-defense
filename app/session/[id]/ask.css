@@ -131,12 +131,30 @@
    现在 .scan 本身常驻 3px 赭石锚点条，再叠一条会把锚点条盖成灰色，故不再重复。*/
 
 /* ── 作答区 ─────────────────────────────────────────── */
+/*
+ * 作答区钉在视口底部。
+ *
+ * 【为什么必须钉】
+ * 2026-11-15 录制前 CDP 实测（视口 1440×900）：问题卡 + 扫读原文 + 判分卡串行排下来，
+ * 作答框顶边落在 1190px —— 已经在整屏之外。演示时评委刚问完，
+ * 我要往下滚一整屏才能开始打字，镜头里就是"人愣住"。
+ *
+ * sticky 而不是 fixed：fixed 会脱离流、永久盖住正文底部（朗读原文时挡字）；
+ * sticky 只在"父容器还没滚完"时贴在 bottom，滚到底自然落回原位。
+ * bottom: 0 之外再留 12px，是给浏览器底边和安全区留的呼吸位。
+ *
+ * 【为什么不新增动效】全站动效账已封顶（cursor-blink / scan-sweep 等 4 处），
+ * 这里只是位置属性变化，不构成新动效。
+ */
 .answer {
   margin-top: 16px;
   border: 1px solid var(--line);
   background: var(--paper);
   box-shadow: var(--shadow-1);
   padding: 16px;
+  position: sticky;
+  bottom: 12px;
+  z-index: 3;
 }
 
 .answer-label {
@@ -412,13 +430,97 @@
   padding-left: 14px;
 }
 
+/*
+ * 【折叠为什么是默认态】
+ * 2026-11-15 录制前 CDP 实测（视口 1440×900）：只答过 2 轮，历史区就已经 614px 高，
+ * 作答框顶边被顶到 1190px —— **整屏之外，要滚一整屏才能开始打字**。
+ * 五轮下来历史区自己就超过一屏，"评委问 → 我答"的现场反而看不见。
+ *
+ * 折叠后每条只占一行：第几问、谁问的、是不是追问、得了多少分。
+ * 信息密度足够确认"这是哪一轮"；要回看原文再点开，不影响正在进行的这一问。
+ */
+.hist-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.hist-bar-label {
+  font-variant-numeric: tabular-nums;
+}
+
+.hist-toggle-all {
+  margin-left: auto;
+  padding: 1px 8px;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.hist-toggle-all:hover {
+  border-color: var(--red-line);
+  color: var(--red);
+}
+
 .hist-item {
-  padding: 10px 0;
+  padding: 0;
   border-bottom: 1px solid var(--line);
 }
 
 .hist-item:last-child {
   border-bottom: none;
+}
+
+/* 折叠头：整行可点。用 button 而不是加 onClick 的 div，
+   这样键盘 Tab 能到、回车能展开 —— 只读的 div 会把这个能力变成"鼠标专属"。 */
+.hist-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.hist-row:hover {
+  color: var(--ink);
+}
+
+.hist-row-score {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.hist-caret {
+  width: 12px;
+  text-align: center;
+  color: var(--line-2);
+}
+
+.hist-item.is-open .hist-caret {
+  color: var(--ink-2);
+}
+
+.hist-body {
+  padding: 2px 0 12px;
 }
 
 .hist-q {
