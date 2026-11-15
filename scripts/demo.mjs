@@ -47,6 +47,10 @@ registerHooks({
 });
 
 const { q, tx } = await import('../lib/db.ts');
+// 维度对齐的实现在 lib/seed-sync.ts（与 app/api/docs/[id]/claims/route.ts 共用一份）：
+// 光在起服务时对齐不够 —— 服务跑起来之后用户在质疑点页点「重新抽取」，
+// 新抽出来的 dimension/type 会再次偏离种子，席位又漂。那个入口由路由自己调。
+const { syncDemoClaimDims } = await import('../lib/seed-sync.ts');
 
 const cwd = process.cwd();
 const SEED = path.join(cwd, 'scripts', 'seed-demo-data.json');
@@ -61,33 +65,15 @@ const DEMO_NAME = 'sample-paper.docx';
  * 会把两位评委的 opening 判到错误席位 → 全对不上 → 评委被丢成 1 位（verify-demo-loop 报
  * "评委数不是 3，疑似锚点失配"）。demo.mjs 旧判据只看"id 在不在"，发现不了这种分布漂移。
  *
- * 只 UPDATE 这两条列、不删不插：避免动到 block_idx/quote/risk 等回放锚点，
- * 也避免重抽/真实模式下其它行的数据被误伤。
+ * 实现已抽到 lib/seed-sync.ts（syncDemoClaimDims），因为**只有开机对齐是不够的**：
+ * 服务跑起来后用户在质疑点页点「重新抽取」，路由那条路径也得对齐一次，
+ * 否则同一个 bug 会在中间过程复发（2026-11-15 录制前就这么塌成 1 位评委）。
+ * 这里只保留薄封装，保证两处用的是同一份逻辑，不各写一遍。
  *
  * @returns 对齐了的条数；0 表示本就一致；-1 表示执行失败（已回滚）。
  */
-function syncClaimDimTypes(docId, seed) {
-  const liveRows = q.all('select id, dimension, type from claims where doc_id = ?', docId);
-  const seedById = new Map(seed.claims.map((c) => [c.id, c]));
-  const drift = [];
-  for (const r of liveRows) {
-    const s = seedById.get(String(r.id));
-    if (s && (String(r.dimension) !== s.dimension || String(r.type) !== s.type)) {
-      drift.push({ id: String(r.id), dimension: s.dimension, type: s.type });
-    }
-  }
-  if (drift.length === 0) return 0;
-  try {
-    tx(() => {
-      for (const d of drift) {
-        q.run('update claims set dimension = ?, type = ? where id = ?', d.dimension, d.type, d.id);
-      }
-    });
-    return drift.length;
-  } catch (e) {
-    console.warn('[demo] 对齐 claim dimension/type 失败（已回滚，不影响真实模式）：', e?.message ?? e);
-    return -1;
-  }
+function syncClaimDimTypes(docId) {
+  return syncDemoClaimDims(docId);
 }
 
 function seedIfMissing() {
@@ -119,7 +105,7 @@ function seedIfMissing() {
       // 所有 seed id 都在：额外校验维度分布是否也和种子一致。
       // id 在 ≠ 能回放：库内 claim 的 (dimension,type) 若比种子旧，planSeats 排出的席位序
       // 会和 personas.json 录制序错位（陈/许/周 → 落库只剩 1 位，verify-demo-loop 报锚点失配）。
-      const n = syncClaimDimTypes(docId, seed);
+      const n = syncClaimDimTypes(docId);
       if (n > 0) {
         console.log(`[demo] 检测到维度分布漂移（${n} 条 dimension/type 与种子不符），已按种子对齐。`);
       } else {

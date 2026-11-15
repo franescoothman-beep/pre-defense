@@ -372,6 +372,125 @@
   color: var(--line-2);
 }
 
+/* ── 已答问答时间线（history） ─────────────────────── */
+/*
+ * 【为什么要有这一块】
+ * 2026-11-15 录制前实测：提交答案后输入框被清空、判分卡只显示分数与缺口，
+ * 用户**再也看不到自己刚写的那段话**；刷新更彻底——GET /api/sessions/:id 当时
+ * 根本不回 turns。而"评委问什么 → 我怎么答 → 评委怎么判"必须是一条能回看的时间线，
+ * 否则录屏里只剩分数，看不到论证本身。
+ *
+ * 视觉上刻意比"当前一问"低一档（字号小、左竖线用中性灰而非维度色）：
+ * 它是留存，不是正在发生的事。
+ */
+.history {
+  margin-bottom: 22px;
+  border-left: 2px solid var(--line-2);
+  padding-left: 14px;
+}
+
+.hist-item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.hist-item:last-child {
+  border-bottom: none;
+}
+
+.hist-q {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.hist-seq {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.hist-who {
+  color: var(--ink-2);
+}
+
+.hist-qtext {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+  margin: 0 0 8px;
+}
+
+/* 我的回答：左侧一道朱红细线，与"评委的话"区分开 */
+.hist-a {
+  border-left: 2px solid var(--red-line);
+  padding: 2px 0 2px 10px;
+  margin: 0 0 8px;
+}
+
+.hist-a-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.hist-atext {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--ink);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.hist-score {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.hist-score-num {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.hist-score-of {
+  color: var(--muted);
+}
+
+/* ── 判分面板里的回答原文 ───────────────────────────── */
+/*
+ * 提交后输入框清空是正确行为（否则用户会以为要再交一次），
+ * 但清空之后必须有一处把刚才那段话留下来 —— 就是这里。
+ */
+.verdict-answer {
+  margin-top: 10px;
+  border-left: 2px solid var(--line-2);
+  padding-left: 10px;
+}
+
+.verdict-answer-text {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* ── 本场结束 ── */
 .ended {
   border: 1px solid var(--line);

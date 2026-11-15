@@ -10,10 +10,26 @@
 //   progress{qIndex,qTotal,answered,personaCount}
 //   currentPersonaId（谁现在该说话；会话结束则为 null）
 //   pastPersonaIds（谁已经问过）
+//   history[]（**已经答过的问答**，刷新/回看用）
+//
+// 【为什么必须回 history】
+// 2026-11-15 录制前实测：提交答案后前端 setAnswer('')、判分卡只显示分数与 gaps，
+// 用户**再也看不到自己刚写的那段话**；而这条路由原来不带 turns，
+// 刷新一下连"问过什么"都没了。回答稿是录制环节的一部分——评委问什么、
+// 你怎么答、评委怎么判，必须是同一条可回看的时间线，否则"预演"这件事没有留存。
 
-import { loadSession, loadPersonas, loadTurns, progressOf, currentQuestion } from '@/lib/session';
+import {
+  loadSession,
+  loadPersonas,
+  loadTurns,
+  loadAnchor,
+  progressOf,
+  currentQuestion,
+  type TurnRow,
+} from '@/lib/session';
 import { MODE_MATRIX } from '@/lib/state';
 import { q } from '@/lib/db';
+import type { GradedLocator } from '@/lib/grade';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,6 +74,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     dimensionMissing: p.dimension === null,
   }));
 
+  const personaById = new Map(personas.map((p) => [p.id, p]));
+
   return Response.json({
     ok: true,
     sessionId: session.id,
@@ -69,5 +87,58 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     progress,
     currentPersonaId,
     pastPersonaIds,
+    history: turns.map((t) => toHistoryItem(t, personaById)),
   });
+}
+
+/**
+ * 把一条 turn 转成前端回看用的问答记录。
+ *
+ * 【为什么 gaps / locators 要在这里解析】
+ * 它们在库里是 JSON 字符串（评分时原样存下来的）。若把字符串直接给前端，
+ * 前端就得自己 JSON.parse 一遍——那是"把库的存储格式泄漏到展示层"，
+ * 下次换存储格式前端就得跟着改。解析放在服务端，前端只拿结构化数据。
+ */
+function toHistoryItem(t: TurnRow, personaById: Map<string, { id: string; name: string; dimension: string | null; color: string }>) {
+  const p = personaById.get(t.personaId);
+  const anchor = t.targetClaimId ? loadAnchor(t.targetClaimId) : null;
+  return {
+    turnId: t.id,
+    seq: t.seq,
+    round: t.round,
+    kind: t.kind === 'followup' ? ('followup' as const) : ('question' as const),
+    personaId: t.personaId,
+    personaName: p?.name ?? null,
+    personaDimension: p?.dimension ?? null,
+    question: t.question,
+    answer: t.answer,
+    score: t.score,
+    gaps: parseJsonArray<string>(t.gaps),
+    locators: parseJsonArray<GradedLocator>(t.locators),
+    verifiedOk: t.verifiedOk,
+    /** 这一问的锚点（没有 target_claim_id 的旧数据为 null） */
+    anchor: anchor
+      ? {
+          claimId: anchor.claimId,
+          blockIdx: anchor.blockIdx,
+          page: anchor.page,
+          section: anchor.section,
+          quote: anchor.quote,
+          locatorKind: anchor.locatorKind,
+          verified: anchor.verified,
+        }
+      : null,
+    createdAt: t.createdAt,
+  };
+}
+
+/** 宽容解析："不是合法 JSON 就当空数组"，绝不让一条坏数据把整页打挂 */
+function parseJsonArray<T>(raw: string | null): T[] {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? (v as T[]) : [];
+  } catch {
+    return [];
+  }
 }

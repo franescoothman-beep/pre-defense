@@ -73,6 +73,7 @@ async function main() {
 
   const sessionId = created.sessionId;
   let askCount = 0;
+  let answered = 0;
 
   while (true) {
     const nx = await (
@@ -93,6 +94,7 @@ async function main() {
         })
       ).json();
       if (!ans.ok && ans.code !== 'E_ALREADY_ANSWERED') throw new Error('回答失败: ' + JSON.stringify(ans));
+      answered++;
       continue;
     }
     if (nx.nextAction === 'stream') {
@@ -110,6 +112,7 @@ async function main() {
           })
         ).json();
         if (!ans.ok && ans.code !== 'E_ALREADY_ANSWERED') throw new Error('回答失败: ' + JSON.stringify(ans));
+        answered++;
       }
       continue;
     }
@@ -130,6 +133,29 @@ async function main() {
   console.log('[report] 风险分示例:', mrSample?.risk_score, '(类型', typeof mrSample?.risk_score, ')');
   if (mrKeys.length < 4) throw new Error('material_risk 维度不足 4');
   if (pfKeys.length < 4) throw new Error('performance 维度不足 4');
+
+  // 【回看链路必须验】2026-11-15 实测：提交后回答正文从界面上消失、GET 不带 turns，
+  // 刷新即丢。录制时"评委问→我怎么答→评委怎么判"必须能回看，所以这里把它固化成判据：
+  //   history 条数 = 答题次数；每条都有 answer（非空）；有分的必须有 gaps/locators 结构。
+  const snap = await (await fetch(`${BASE}/api/sessions/${sessionId}`)).json();
+  const history = snap.history ?? [];
+  console.log('[history]', history.length, '条（答题', answered, '次）');
+  if (history.length !== answered) {
+    throw new Error(`history 条数 ${history.length} ≠ 答题次数 ${answered}（回看链路断了）`);
+  }
+  for (const h of history) {
+    if (!h.answer || String(h.answer).trim() === '') {
+      throw new Error(`history #${h.seq} 没有留下回答原文（提交后回答仍应可见）`);
+    }
+    if (!Array.isArray(h.gaps) || !Array.isArray(h.locators)) {
+      throw new Error(`history #${h.seq} 的 gaps/locators 不是数组（服务端解析漏了）`);
+    }
+    if (h.score !== null && h.score !== undefined && !Array.isArray(h.locators)) {
+      throw new Error(`history #${h.seq} 有分数却没有出处数组`);
+    }
+  }
+  console.log('[history] 每条都留住了回答原文 + gaps + locators ✓');
+
   console.log(`[OK] 零 key 闭环走通，共 ${askCount} 问，评委 ${created.personas.length} 位，报告生成成功`);
 }
 

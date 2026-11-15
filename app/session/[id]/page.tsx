@@ -47,6 +47,52 @@ type ApiSession = {
   currentPersonaId: string | null;
   pastPersonaIds: string[];
   docName: string;
+  /** 已答过的问答（服务端解析好 gaps/locators 后给出，前端不再 JSON.parse 库里的字符串） */
+  history?: HistoryItem[];
+};
+
+/**
+ * 一条已答问答。
+ *
+ * 【为什么回答正文必须由服务端回传】
+ * 提交后原本 `setAnswer('')` 把输入框清空，判分卡只留分数与缺口——
+ * 用户再也看不到自己刚写的那段话，刷新更是连问过什么都丢。
+ * 而"我答了什么、评委怎么判"必须是一条可回看的时间线，否则录屏里
+ * 观众只能看到分数，看不到论证本身。
+ */
+type HistoryItem = {
+  turnId: string;
+  seq: number;
+  round: number;
+  kind: 'question' | 'followup';
+  personaId: string;
+  personaName: string | null;
+  personaDimension: BenchDimension | null;
+  question: string;
+  answer: string | null;
+  score: number | null;
+  gaps: string[];
+  locators: Array<{
+    blockIdx: number;
+    page: number | null;
+    section: string | null;
+    quote: string;
+    kind: 'quote' | 'absence';
+    scope?: string;
+    verified: 0 | 1 | null;
+    reason?: string;
+  }>;
+  verifiedOk: 0 | 1 | null;
+  anchor: {
+    claimId: string;
+    blockIdx: number;
+    page: number | null;
+    section: string | null;
+    quote: string;
+    locatorKind: 'quote' | 'absence';
+    verified: 0 | 1 | null;
+  } | null;
+  createdAt: string | null;
 };
 
 /** meta 事件：指出"现在是谁在问、问的是哪一条原文" */
@@ -138,6 +184,16 @@ type Verdict = {
   verifiedOk: 0 | 1;
   locators: Evaluation['locators'];
   degraded: boolean;
+  /**
+   * 刚才提交的那段回答原文。
+   *
+   * 【为什么判分面板要带着回答】
+   * 提交后输入框会被清空（那是正确的，否则用户会以为要再交一次）。
+   * 但清空之后，页面上就只剩"分数 + 缺口"，**自己刚写的论证整段消失了**——
+   * 录制时这正是最尴尬的镜头：评委问什么、你怎么答，观众只看到分数。
+   * 所以判分面板自己保存一份原文，答完立刻可见；更早的问答交给 history。
+   */
+  answer: string;
 };
 
 export default function SessionPage({ params }: { params: Promise<{ id: string }> }) {
@@ -159,6 +215,16 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const [submitting, setSubmitting] = useState(false);
   /** 本次作答的判分结果 */
   const [verdict, setVerdict] = useState<Verdict | null>(null);
+  /**
+   * 这个 verdict 属于哪一问。
+   *
+   * 【为什么必须记住它】
+   * 判分面板要在"用户正看着的地方"显示刚答完的这一问（含回答原文 + 分数）；
+   * 而 history 是整场的时间线，也会包含同一问。两者若都渲染，屏幕上就会出现
+   * 一模一样的问答两遍。用 turnId 把「当前这一问」从 history 里剔掉，
+   * 等下一问开流后再自然并入 history —— 既不重复，也不丢。
+   */
+  const [verdictTurnId, setVerdictTurnId] = useState<string | null>(null);
   /** /answer 级别的错误（与 SSE 的 streamError 分开，两者来源不同） */
   const [answerError, setAnswerError] = useState<string | null>(null);
   /** 追问模式：这一问是"咬着上一条"的追问 */
@@ -175,6 +241,17 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
    * 计数器既能让 effect 重跑，也顺带记录了本场开过几条流（排查用）。
    */
   const [openSeq, setOpenSeq] = useState(0);
+
+  /**
+   * 已答问答（本地乐观追加 + 服务端权威列表）。
+   *
+   * 【为什么要有本地这一份，不直接读 data.history】
+   * 提交成功后立刻要把"我刚才答了什么"显示出来。只依赖 reloadSession 的话，
+   * 会有一小段"判分已出、回答却不见"的空窗——而这正是原本被吐槽的那个观感
+   * （提交后只留判分卡、回答正文凭空消失）。所以先按 /answer 响应本地拼一条，
+   * 再让服务端的 history（含解析好的 gaps/locators）覆盖回来。
+   */
+  const [pendingHistory, setPendingHistory] = useState<HistoryItem[]>([]);
 
   const draftKey = sessionId && doneInfo?.turnId ? `rehearsal:draft:${sessionId}:${doneInfo.turnId}` : null;
   const esRef = useRef<EventSource | null>(null);
@@ -340,6 +417,14 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
       setAnswerError('回答是空的。哪怕只写一句"这一点我还没想清楚"，也比空白更能体现临场表现。');
       return;
     }
+    // 【先把提交这一刻的画面钉住】
+    // 下面三处分支都会 setAnswer('') / setDoneInfo(null) / setMeta(追问)，
+    // 一旦先走分支，"我刚答了什么、答的是哪一问"就全被覆盖了。
+    // 所以进入网络请求前就把快照取好；之后无论走哪条分支都用这份快照。
+    const answeredTurnId = doneInfo.turnId;
+    const answeredText = answer;
+    const answeredQuestion = streamText;
+    const answeredMeta = meta;
     setSubmitting(true);
     setAnswerError(null);
     setVerdict(null);
@@ -348,7 +433,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
       const r = await fetch(`/api/sessions/${sessionId}/answer`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ turnId: doneInfo.turnId, answer }),
+        body: JSON.stringify({ turnId: answeredTurnId, answer: answeredText }),
       });
       const j = (await r.json()) as AnswerResp;
 
@@ -358,6 +443,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
       }
 
       // 判分结果（可能是降级：evaluation 为 null）
+      // 带着回答原文：判分面板自己也要能显示"我答的是这段话"。
       if (j.evaluation) {
         setVerdict({
           score: j.evaluation.score,
@@ -366,12 +452,50 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
           verifiedOk: j.evaluation.verifiedOk,
           locators: j.evaluation.locators,
           degraded: Boolean(j.degraded),
+          answer: answeredText,
         });
       } else if (j.degraded) {
         setVerdict({
           score: -1, scorePercent: 0, gaps: [], verifiedOk: 0, locators: [], degraded: true,
+          answer: answeredText,
         });
       }
+      setVerdictTurnId(answeredTurnId);
+
+      // 同时落进问答记录：追问分支不会重开 SSE，服务端 history 要等下一次 reload，
+      // 本地这条保证"答完立刻可见"，之后再由服务端同 turnId 的那条覆盖（带完整 quote/locators）。
+      const askedBy = answeredMeta?.persona ?? personaNameOf(data, answeredMeta?.personaId ?? data?.currentPersonaId ?? null);
+      const askedDim = personaDimOf(data, answeredMeta?.personaId ?? data?.currentPersonaId ?? null);
+      setPendingHistory((prev) => [
+        ...prev.filter((h) => h.turnId !== answeredTurnId),
+        {
+          turnId: answeredTurnId,
+          seq: prev.length + 1,
+          round: answeredMeta?.qIndex ?? 0,
+          kind: answeredMeta?.kind === 'followup' || isFollowup ? 'followup' : 'question',
+          personaId: answeredMeta?.personaId ?? '',
+          personaName: askedBy,
+          personaDimension: askedDim,
+          question: answeredQuestion,
+          answer: answeredText,
+          score: j.evaluation?.score ?? null,
+          gaps: j.evaluation?.gaps ?? [],
+          locators: j.evaluation?.locators ?? [],
+          verifiedOk: j.evaluation?.verifiedOk ?? null,
+          anchor: answeredMeta
+            ? {
+                claimId: answeredMeta.claimId,
+                blockIdx: answeredMeta.blockIdx,
+                page: answeredMeta.page ?? null,
+                section: answeredMeta.section ?? null,
+                quote: '',
+                locatorKind: answeredMeta.locatorKind ?? 'quote',
+                verified: answeredMeta.verified ?? null,
+              }
+            : null,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
 
       // 决定下一步
       if (j.decision === 'end' || j.nextAction === 'report' || j.reportReady) {
@@ -411,6 +535,10 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
       setAnswer('');
       setRestored(false);
       setDoneInfo(null);
+      // 上一问已经靠 verdict 面板展示过；换个新问题时把面板收掉，
+      // 这一问随之并进 history（verdictTurnId 清空后 filter 不再排除它）。
+      setVerdict(null);
+      setVerdictTurnId(null);
       setOpenSeq((n) => n + 1);
       reloadSession(sessionId).catch(() => { /* 静态信息刷新失败不影响答题 */ });
     } catch (e) {
@@ -418,7 +546,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     } finally {
       setSubmitting(false);
     }
-  }, [sessionId, doneInfo, submitting, answer, draftKey, reloadSession]);
+  }, [sessionId, doneInfo, submitting, answer, draftKey, reloadSession, meta, streamText, isFollowup, data]);
 
   // ---------- 7) 结束并出报告（任何时刻可点，C11） ----------
   const endAndReport = useCallback(async () => {
@@ -454,6 +582,17 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     meta?.persona ?? data?.personas.find((p) => p.id === data.currentPersonaId)?.name ?? '评委';
   const currentDim = data?.personas.find((p) => p.id === (meta?.personaId ?? data?.currentPersonaId))?.dimension;
   const canAnswer = phase === 'done' && Boolean(doneInfo?.turnId) && !ended;
+
+  // 【服务端 history 为准，本地乐观条目只补"服务端还没回话的那一瞬"】
+  // 合并规则：同 turnId 时服务端覆盖本地（服务端有解析好的 gaps/locators/quote）；
+  // 服务端没有的（刚提交、reload 还没回）保留本地。按 seq 排序保证"问→答→追问"的先后。
+  // 再剔掉 verdictTurnId：刚答完的那一问已经由下方判分面板完整显示（含回答原文），
+  // 若 history 也渲染一遍，屏幕上会出现一模一样的问答两遍。
+  const serverHistory = data?.history ?? [];
+  const serverIds = new Set(serverHistory.map((h) => h.turnId));
+  const history: HistoryItem[] = [...serverHistory, ...pendingHistory.filter((h) => !serverIds.has(h.turnId))]
+    .filter((h) => h.turnId !== verdictTurnId)
+    .sort((a, b) => a.seq - b.seq);
 
   return (
     <>
@@ -495,6 +634,66 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
             </div>
           ) : (
             <>
+              {/* 已答问答：把「问 → 答 → 判分」按时间线留在这里。
+                  放在当前问题之上，因为观众读的顺序就是"前面问过什么、我怎么答的"。 */}
+              {history.length > 0 ? (
+                <section className="history" aria-label="已答记录">
+                  {history.map((h) => (
+                    <article key={h.turnId} className="hist-item">
+                      <div className="hist-q">
+                        <span className="hist-seq">第 {h.round} 问</span>
+                        {h.kind === 'followup' ? <span className="turn-followup">追问</span> : null}
+                        <span className="hist-who">{h.personaName ?? '评委'}</span>
+                      </div>
+                      <p className="hist-qtext">{h.question}</p>
+                      {h.answer ? (
+                        <div className="hist-a">
+                          <span className="hist-a-label">我的回答</span>
+                          <p className="hist-atext">{h.answer}</p>
+                        </div>
+                      ) : null}
+                      {h.score !== null ? (
+                        <div className="hist-score">
+                          <span className="hist-score-num">{h.score}</span>
+                          <span className="hist-score-of">/ 5</span>
+                          {h.verifiedOk !== null ? (
+                            <span className={`verdict-verified${h.verifiedOk ? ' is-ok' : ' is-bad'}`}>
+                              {h.verifiedOk ? '✓ 出处已机检' : '出处未命中'}
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      {h.gaps.length > 0 ? (
+                        <ul className="verdict-gaps">
+                          {h.gaps.map((g, i) => (
+                            <li key={i}>{g}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      {/* 出处条跟着一起留存：判分卡被收进历史后，"这一答引了哪几句原文"
+                          不能随之消失 —— 那是本作品溯源能力的展示面 */}
+                      {h.locators.length > 0 ? (
+                        <div className="verdict-locators">
+                          <span className="verdict-label">出处</span>
+                          {h.locators.map((l, i) => (
+                            <span
+                              key={i}
+                              className={`locator locator-${l.kind}${l.verified === 1 ? ' is-hit' : ''}`}
+                              title={l.reason}
+                            >
+                              {l.kind === 'absence'
+                                ? `缺失 · 查过 ${l.scope ?? l.section ?? '未标注'}`
+                                : `BLOCK ${l.blockIdx}${l.page !== null ? ` · P${l.page}` : ''}`}
+                              {l.kind !== 'absence' && l.verified === 1 ? ' ✓' : ''}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </article>
+                  ))}
+                </section>
+              ) : null}
+
               {(phase === 'opening' || phase === 'live' || phase === 'done') && (
                 // 评委姓名与维度不再在卡片里重复一遍大字：评审席已经把当前席位高亮，
                 // 这里只在无障碍标签里保留同一信息，视觉上直接进问题正文。
@@ -544,7 +743,12 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
 
               {streamError ? <div className="turn-error">{streamError.fallback}</div> : null}
 
-              {/* 判分结果：分数 + gaps + 出处机检 */}
+              {/* 判分结果：**回答原文 + 分数 + gaps + 出处机检**
+                  【为什么回答原文也在这里】
+                  提交后输入框会被清空（正确：否则用户会以为要再交一次），
+                  但清空之后若只剩分数，用户就再也看不到自己刚写的论证——
+                  录制时这一镜头里观众会看到"评委问→分数出现"，中间的作答凭空消失。
+                  所以判分面板自带一份回答快照；更早的问答由 history 承载。 */}
               {verdict ? (
                 <section className="verdict" aria-label="本问判分">
                   <div className="verdict-head">
@@ -562,6 +766,13 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                       </>
                     )}
                   </div>
+
+                  {verdict.answer ? (
+                    <div className="verdict-answer">
+                      <span className="verdict-label">我的回答</span>
+                      <p className="verdict-answer-text">{verdict.answer}</p>
+                    </div>
+                  ) : null}
 
                   {verdict.gaps.length > 0 ? (
                     <ul className="verdict-gaps">
@@ -673,3 +884,15 @@ const DIM_CN: Record<BenchDimension, string> = {
   depth: '技术深度',
   expression: '表达',
 };
+
+/** 从会话数据里按 personaId 取评委名（找不到就说"评委"，不编一个名字） */
+function personaNameOf(data: ApiSession | null, personaId: string | null): string | null {
+  if (!personaId) return null;
+  return data?.personas.find((p) => p.id === personaId)?.name ?? null;
+}
+
+/** 从会话数据里按 personaId 取维度（历史条目的着色依据） */
+function personaDimOf(data: ApiSession | null, personaId: string | null): BenchDimension | null {
+  if (!personaId) return null;
+  return data?.personas.find((p) => p.id === personaId)?.dimension ?? null;
+}

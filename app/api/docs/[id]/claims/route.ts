@@ -13,6 +13,7 @@ import { q } from '@/lib/db';
 import { callLLM, resetMockCursor, isMock } from '@/lib/llm';
 import { CLAIMS_SYSTEM, buildClaimsUser, batchesOf, ClaimsSchema } from '@/lib/prompts/claims.v1';
 import { attachLocator, rateOf } from '@/lib/locator';
+import { syncDemoClaimDims } from '@/lib/seed-sync';
 import type { Block } from '@/lib/parse';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -221,6 +222,23 @@ async function handleExtract(ctx: { params: Promise<{ id: string }> }): Promise<
       c.risk,
       c.dimension,
       now,
+    );
+  }
+
+  // 【重抽之后必须把内置样例的维度分布拉回种子】
+  // 重抽走的是 LLM（mock 下是 fixtures/llm/claims.json 的序号回放），它判出来的
+  // dimension/type 与录制 personas.json 那版**不一定一致**：实测 fixture 把 2 条判成
+  // logic/method，库内分布就成了 evidence 7 / logic 6 / depth 4。
+  // planSeats 按维度条数降序排席位 → 席位序变 [evidence·method, logic·value, depth·engineering]，
+  // 而 personas 回放是硬编码 claim_id 的、建会话时按**下标**对齐 → 许/周两位 opening 全落空，
+  // 评委被丢成 1 位、会话总问数塌成 1（用户看到的「座位 1/1、第 1/1 问」）。
+  // 只在 mock/演示场景对内置样例生效（syncDemoClaimDims 内部按内容指纹判定），
+  // 真实模式上传自己的材料一律返回 0，不动任何数据。
+  const dimSynced = isMock() ? syncDemoClaimDims(docId) : 0;
+  if (dimSynced > 0) {
+    console.warn(
+      `[claims] 内置样例的维度分布与种子不一致（${dimSynced} 条），已按种子对齐——` +
+        `否则席位顺序会漂移，导致回放时评委只剩 1 位。`,
     );
   }
 
