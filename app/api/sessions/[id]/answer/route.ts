@@ -283,6 +283,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         claimId: followup.targetClaimId,
         blockIdx: fAnchor?.blockIdx ?? null,
         source: fAnchor?.source ?? '',
+        // quote 与 SSE meta 同口径：右侧原文栏要用它在整篇里标出被引用的那一句
+        quote: fAnchor?.quote ?? '',
         page: fAnchor?.page ?? null,
         section: fAnchor?.section ?? null,
         locatorKind: fAnchor?.locatorKind ?? 'quote',

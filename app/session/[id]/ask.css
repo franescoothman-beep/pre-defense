@@ -532,6 +532,115 @@
   cursor: not-allowed;
 }
 
+/* ── 右侧原文栏 ────────────────────────────────────── */
+/*
+ * 【它和扫读区不是一回事，别合并】
+ * 扫读区回答"评委现在正在读哪几行"——是一次**动作**，随这一问结束就该停。
+ * 侧栏回答"这句话在整篇的第几段、前后写了什么"——是一个**位置**，要能一直滚。
+ * 前者是过程，后者是坐标；过程要短，坐标要全。所以两块都在。
+ *
+ * 【为什么左侧用 2px 中性灰而非维度色】
+ * 维度色在评审席与扫读区已经各自承担了一次"这是谁的视角"；
+ * 再给侧栏上色会变成第三种语义。侧栏是材料本身，用墨色与发丝线即可。
+ *
+ * 滚动容器高度锁 62vh：比一屏短一截，保证它旁边的问题卡与作答框仍在视野里，
+ * 否则"对照原文"要上下滚整页，等于又把问题挪出屏幕。
+ */
+.orig {
+  position: sticky;
+  top: 12px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--line-2);
+  background: var(--paper-2);
+}
+
+.orig-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.orig-head b {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.orig-body {
+  max-height: 62vh;
+  overflow-y: auto;
+  padding: 6px 0;
+  /* 一块原文一个滚动位置，跳块时靠 JS 居中而不是靠浏览器锚点 */
+  scrollbar-width: thin;
+}
+
+.orig-empty {
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.orig-block {
+  padding: 8px 12px;
+  border-left: 2px solid transparent;
+}
+
+/*
+ * 当前块：左侧朱红实线 + 纸色提亮。
+ * 只改背景与竖线，不加阴影/放大——侧栏里一次只有一块是"当前"，
+ * 靠位置与那一道红线就够，多余的强调会把整栏变成花屏。
+ */
+.orig-block.is-now {
+  border-left-color: var(--red);
+  background: var(--paper-3);
+}
+
+.orig-where {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.orig-block.is-now .orig-where {
+  color: var(--red);
+}
+
+.orig-text {
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: var(--ink-2);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.orig-block.is-now .orig-text {
+  color: var(--ink);
+}
+
+/*
+ * 被引用的那一句。
+ * 与 doc 页的 `.src .hi` 同口径（朱红底 + 朱红下线），
+ * 让"文档页看到的命中"与"录制现场看到的命中"是同一个视觉约定。
+ * 纯文本切分渲染，不塞 HTML（S3 基线）。
+ */
+.orig-text .hi {
+  background: var(--red-soft);
+  border-bottom: 1px solid var(--red-line);
+  color: var(--ink);
+}
+
 /* ── 窄屏 ── */
 @media (max-width: 720px) {
   .scan-text {
@@ -541,3 +650,19 @@
     margin-left: 0;
   }
 }
+
+/*
+ * 窄屏下侧栏不再并排（两栏在 session.css 的 900px 断点已落成一栏），
+ * 这里把它的高度放开：整页纵向滚动时不该再套一个内层滚动条，
+ * 否则手机/"400px 探针"上会出现"滚到栏底还是看不全"的双重滚动。
+ */
+@media (max-width: 900px) {
+  .orig {
+    position: static;
+  }
+  .orig-body {
+    max-height: none;
+    overflow-y: visible;
+  }
+}
+

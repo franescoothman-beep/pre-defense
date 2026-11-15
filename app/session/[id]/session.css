@@ -55,6 +55,37 @@
   padding: 40px 24px 0;
 }
 
+/* ── 两栏：左侧问答流 + 右侧原文栏 ──
+ *
+ * 【为什么右侧是"常驻栏"而不是"弹窗/抽屉"】
+ * 这一页要回答的问题是"评委正在质问我这句话，它在论文哪一段、前后写了什么"。
+ * 弹窗会把正文盖住——盖住的恰恰是问题本身，读者得来回关开才能对照。
+ * 常驻栏让「问题」与「它的原文位置」同屏对照，这才是"回到原文"该有的样子。
+ *
+ * 侧栏给 320px 定宽：materials 正文一行中文约 40 字，320px 在 13.5px 字号下
+ * 一行约 19 字，读起来不挤；同时保证左侧问答流仍有 ~700px，不被挤压到换行过碎。
+ * minmax(0, 1fr) 而非 1fr：防止长串英文/URL 把左栏撑出网格宽度（grid 的经典坑）。
+ */
+.chat-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 22px;
+  align-items: start;
+}
+
+.chat-main {
+  min-width: 0;
+}
+
+/* 窄屏（含 400px 探针）：两栏落成一栏，原文栏跟在问答流后面。
+ * 不隐藏原文栏——小屏更需要"能滚回去看原文"，只是不再并排。 */
+@media (max-width: 900px) {
+  .chat-cols {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+}
+
 /* 一条评委发言 */
 .turn {
   border: 1px solid var(--line);

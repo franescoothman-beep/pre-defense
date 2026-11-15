@@ -32,3 +32,6 @@ docs/recordings/*.mkv
 
 # 验证用截图（本地临时产物，不入库）
 docs/shots/
+
+# probe screenshots (local only)
+.shots/

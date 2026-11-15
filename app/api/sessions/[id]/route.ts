@@ -79,6 +79,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   return Response.json({
     ok: true,
     sessionId: session.id,
+    // docId 给右侧原文侧栏用（它要按材料取全篇段落，见 app/api/docs/[id]/blocks）。
+    // 放在这里而不是让前端从别处猜：会话自己就知道审的是哪份材料。
+    docId: session.docId,
     docName,
     state: session.state,
     mode: session.mode,

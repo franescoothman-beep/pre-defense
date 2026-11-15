@@ -47,6 +47,8 @@ type ApiSession = {
   currentPersonaId: string | null;
   pastPersonaIds: string[];
   docName: string;
+  /** 这份材料的 id —— 右侧原文侧栏要靠它取全篇 */
+  docId?: string;
   /** 已答过的问答（服务端解析好 gaps/locators 后给出，前端不再 JSON.parse 库里的字符串） */
   history?: HistoryItem[];
 };
@@ -106,6 +108,8 @@ type SseMeta = {
   blockTotal?: number;
   candidateTotal?: number;
   source?: string;
+  /** 被引用的那一句原文（不是整块）——右侧侧栏用它在本块里打高亮 */
+  quote?: string;
   page?: number | null;
   section?: string | null;
   locatorKind?: 'quote' | 'absence';
@@ -125,6 +129,14 @@ type SseDone = {
 };
 
 type SseError = { code: string; fallback: string };
+
+/** 材料的一段原文（右侧侧栏用；来自 GET /api/docs/[id]/blocks） */
+type DocBlock = {
+  idx: number;
+  page: number | null;
+  section: string | null;
+  text: string;
+};
 
 /** 一条已判分的评价 */
 type Evaluation = {
@@ -159,6 +171,8 @@ type AnswerResp = {
     claimId: string;
     blockIdx: number | null;
     source: string;
+    /** 与 SSE meta 同口径：右侧原文栏靠它在本块里打高亮 */
+    quote?: string;
     page: number | null;
     section: string | null;
     locatorKind: 'quote' | 'absence';
@@ -253,6 +267,22 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
    */
   const [pendingHistory, setPendingHistory] = useState<HistoryItem[]>([]);
 
+  /**
+   * 这份材料的全篇段落（右侧原文侧栏用）。
+   *
+   * 【为什么整篇都取下来】
+   * 扫读区只拿得到 meta.source —— **当前这一块**的原文。用户点「回到原文」时
+   * 看到的永远是一个孤零零的片段，判断不了这句话在整篇里处在什么位置、
+   * 前后说了什么。而"能追回原文那一句"恰恰是本作品的核心卖点：
+   * 只给一句 = 只证明了字符串存在，给全篇上下文才证明"这句话在原意里成立"。
+   *
+   * 取一次缓存在 state：原文是**材料级**的，不随对话推进变化。
+   */
+  const [blocks, setBlocks] = useState<DocBlock[] | null>(null);
+  const [blocksError, setBlocksError] = useState<string | null>(null);
+  const origRef = useRef<HTMLDivElement | null>(null);
+  const origCurRef = useRef<HTMLDivElement | null>(null);
+
   const draftKey = sessionId && doneInfo?.turnId ? `rehearsal:draft:${sessionId}:${doneInfo.turnId}` : null;
   const esRef = useRef<EventSource | null>(null);
   const finishedRef = useRef(false);
@@ -286,6 +316,44 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
       alive = false;
     };
   }, [sessionId, reloadSession]);
+
+  // ---------- 2.5) 取这份材料的全篇原文（右侧侧栏用） ----------
+  //
+  // 【为什么按 docId 取一次就够】
+  // 原文是材料级的，整场对话推进不会改它一个字符；而会话 GET 是每次换问都会刷的
+  // 轮询接口，把全篇塞进去等于每次刷新都重传一遍。所以单独取一次，缓存在 state。
+  const docId = data?.docId ?? null;
+  useEffect(() => {
+    if (!docId) return;
+    let alive = true;
+    setBlocksError(null);
+    fetch(`/api/docs/${docId}/blocks`)
+      .then(async (r) => {
+        const j = (await r.json()) as { ok?: boolean; message?: string; blocks?: DocBlock[] };
+        if (!r.ok || j.ok === false) throw new Error(j.message ?? `原文加载失败（${r.status}）`);
+        if (alive) setBlocks(j.blocks ?? []);
+      })
+      .catch((e: Error) => {
+        if (alive) setBlocksError(e.message);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [docId]);
+
+  // ---------- 2.6) 让"当前这一块"停在侧栏中间 ----------
+  //
+  // 【为什么要居中而不是滚到顶部】
+  // 用户看的是"这句话在原意里成立吗"，答案在**上下文**里 —— 前面怎么铺垫、后面怎么接。
+  // 把当前块顶到最上方，前文就整块被切掉了。居中让前后两次呼吸都在视野内。
+  useEffect(() => {
+    const box = origRef.current;
+    const el = origCurRef.current;
+    if (!box || !el) return;
+    const boxRect = box.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    box.scrollTop += elRect.top - boxRect.top - box.clientHeight / 2 + elRect.height / 2;
+  }, [meta?.blockIdx, blocks]);
 
   // ---------- 3) 接 SSE 流（每次 openSeq 变化就重开一条） ----------
   useEffect(() => {
@@ -488,7 +556,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                 blockIdx: answeredMeta.blockIdx,
                 page: answeredMeta.page ?? null,
                 section: answeredMeta.section ?? null,
-                quote: '',
+                quote: answeredMeta.quote ?? '',
                 locatorKind: answeredMeta.locatorKind ?? 'quote',
                 verified: answeredMeta.verified ?? null,
               }
@@ -516,6 +584,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
           claimId: j.followup.claimId,
           blockIdx: j.followup.blockIdx ?? 0,
           source: j.followup.source,
+          quote: j.followup.quote ?? '',
           page: j.followup.page,
           section: j.followup.section,
           locatorKind: j.followup.locatorKind,
@@ -633,9 +702,10 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
               <p>{loadError}</p>
             </div>
           ) : (
-            <>
-              {/* 已答问答：把「问 → 答 → 判分」按时间线留在这里。
-                  放在当前问题之上，因为观众读的顺序就是"前面问过什么、我怎么答的"。 */}
+            <div className="chat-cols">
+              <div className="chat-main">
+                {/* 已答问答：把「问 → 答 → 判分」按时间线留在这里。
+                    放在当前问题之上，因为观众读的顺序就是"前面问过什么、我怎么答的"。 */}
               {history.length > 0 ? (
                 <section className="history" aria-label="已答记录">
                   {history.map((h) => (
@@ -870,7 +940,63 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                   </div>
                 </div>
               ) : null}
-            </>
+              </div>
+
+              {/*
+                右侧原文栏：把「当前这一块」放回整篇里。
+                【为什么不替换掉左边那个扫读区】
+                扫读区是**思考态**——证明"评委现在正在读这几行"，是过程的一部分，
+                离开当前问题卡就不成立。侧栏是**定位器**——回答"这句话在整篇里的位置"，
+                要能上下滚、要看前后文。两者回答的不是同一个问题，所以都在。
+                侧栏整篇一次取回（材料级、不随对话变化），只把当前块高亮并居中。
+              */}
+              <aside className="orig" aria-label="原文全篇">
+                <div className="orig-head">
+                  <b>原文</b>
+                  {meta && meta.blockIdx !== null && meta.blockIdx !== undefined ? (
+                    <span>· 当前 BLOCK {meta.blockIdx}</span>
+                  ) : null}
+                  {blocks ? <span>· 全篇 {blocks.length} 段</span> : null}
+                </div>
+                <div className="orig-body" ref={origRef}>
+                  {blocksError ? (
+                    <p className="orig-empty">{blocksError}</p>
+                  ) : !blocks ? (
+                    <p className="orig-empty">正在取原文…</p>
+                  ) : blocks.length === 0 ? (
+                    <p className="orig-empty">这份材料没有可显示的原文段落。</p>
+                  ) : (
+                    blocks.map((b) => {
+                      const isNow = meta?.blockIdx === b.idx;
+                      // 当前块里把命中句挑出来标红：光有"这一段"还不够，
+                      // 要让评委一眼看到"是哪一句被引用了"。纯文本切分，不塞 HTML。
+                      const [pre, hit, post] =
+                        isNow && meta?.locatorKind === 'quote' && meta?.source
+                          ? splitByQuote(b.text, anchorQuote(meta, b.text))
+                          : ([b.text, '', ''] as [string, string, string]);
+                      return (
+                        <div
+                          key={b.idx}
+                          className={`orig-block${isNow ? ' is-now' : ''}`}
+                          ref={isNow ? origCurRef : null}
+                        >
+                          <div className="orig-where">
+                            BLOCK {b.idx}
+                            {b.page !== null ? ` · P${b.page}` : ''}
+                            {b.section ? ` · ${b.section}` : ''}
+                          </div>
+                          <p className="orig-text">
+                            {pre}
+                            {hit ? <span className="hi">{hit}</span> : null}
+                            {post}
+                          </p>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </aside>
+            </div>
           )}
         </div>
       </main>
@@ -895,4 +1021,25 @@ function personaNameOf(data: ApiSession | null, personaId: string | null): strin
 function personaDimOf(data: ApiSession | null, personaId: string | null): BenchDimension | null {
   if (!personaId) return null;
   return data?.personas.find((p) => p.id === personaId)?.dimension ?? null;
+}
+
+/** 侧栏要在这一块里标出的那一句：meta 自带 quote 就用它，没有就不标 */
+function anchorQuote(meta: SseMeta, blockText: string): string {
+  const q = meta.quote ?? '';
+  if (!q) return '';
+  // 只在本块里标：同一句话若在别处也出现，不该跟着一起亮
+  return blockText.includes(q) ? q : '';
+}
+
+/*
+ * 把一段原文按命中句切成「前 / 命中 / 后」。
+ * 【为什么必须走文本切分】模型产出的文本一律当纯文本渲染，
+ * S3 基线不允许把原文/引文塞进 HTML（quote 本身就是模型输出）。
+ * 找不到就整段当前缀、命中为空，绝不猜测性改写原文。
+ */
+function splitByQuote(source: string, quote: string): [string, string, string] {
+  if (!quote) return [source, '', ''];
+  const i = source.indexOf(quote);
+  if (i < 0) return [source, '', ''];
+  return [source.slice(0, i), quote, source.slice(i + quote.length)];
 }

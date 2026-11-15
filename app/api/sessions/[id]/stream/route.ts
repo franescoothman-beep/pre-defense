@@ -151,6 +151,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
               blockTotal,
               candidateTotal,
               source: cur.anchor.source,
+              // quote 专供右侧原文栏：在整篇里把「被引用的那一句」标出来，
+              // 否则观众只看到"这一整段被读了"，看不到"到底是哪一句"。
+              quote: cur.anchor.quote,
               page: cur.anchor.page,
               section: cur.anchor.section,
               locatorKind: cur.anchor.locatorKind,
@@ -243,6 +246,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
             blockTotal,
             candidateTotal,
             source: anchor.source,
+            // 见重播分支：右侧原文栏靠 quote 在整篇里定位被引用的那一句
+            quote: anchor.quote,
             page: anchor.page,
             section: anchor.section,
             locatorKind: anchor.locatorKind,
