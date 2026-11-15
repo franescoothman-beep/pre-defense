@@ -704,14 +704,20 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const currentDim = data?.personas.find((p) => p.id === (meta?.personaId ?? data?.currentPersonaId))?.dimension;
   const canAnswer = phase === 'done' && Boolean(doneInfo?.turnId) && !ended;
 
-  // 【服务端 history 为准，本地乐观条目只补"服务端还没回话的那一瞬"】
+  // 【这块是「已答记录」，只收答完的】
+  // 服务端的 turns 是**全部**轮次，包括正在问、还没答的那一条（answer 为空串）。
+  // 若不过滤，当前问题会同时出现在时间线与下方问题卡里 —— 同一个问题显示两遍。
+  // 判据用「answer 非空」而不是「取最后一条以外」：时间线的语义就是"我说过什么"，
+  // 没说的话不该占一行（追问刚插进来时 answer 也是空的，同样不该出现）。
+  //
   // 合并规则：同 turnId 时服务端覆盖本地（服务端有解析好的 gaps/locators/quote）；
   // 服务端没有的（刚提交、reload 还没回）保留本地。按 seq 排序保证"问→答→追问"的先后。
   // 再剔掉 verdictTurnId：刚答完的那一问已经由下方判分面板完整显示（含回答原文），
   // 若 history 也渲染一遍，屏幕上会出现一模一样的问答两遍。
-  const serverHistory = data?.history ?? [];
+  const serverHistory = (data?.history ?? []).filter((h) => (h.answer ?? '').trim() !== '');
   const serverIds = new Set(serverHistory.map((h) => h.turnId));
   const history: HistoryItem[] = [...serverHistory, ...pendingHistory.filter((h) => !serverIds.has(h.turnId))]
+    .filter((h) => (h.answer ?? '').trim() !== '')
     .filter((h) => h.turnId !== verdictTurnId)
     .sort((a, b) => a.seq - b.seq);
 
