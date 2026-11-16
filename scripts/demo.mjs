@@ -209,11 +209,29 @@ function seedIfMissing() {
 
 seedIfMissing();
 
-const nextBin = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-const child = spawn(nextBin, ['next', 'dev'], {
+// 【为什么直接调 node_modules 里的 next，而不是 npx】
+// 2026-11-16 录段⑤ 时实测：`npm i` 刚结束的瞬间，npm 还在收尾（写 .bin 目录、跑脚本），
+// 此时 `npx next dev` 解析不到本地包，会**联网安装 next@16.4.6**（package.json 锁的是
+// 15.5.28）——评委零 key 复现时可能拿到一个完全不同的 Next 版本。
+// 直接指到 node_modules/.bin 的真实二进制，npx 的模糊解析就被绕开了：
+// 包不存在时这里会明确报 ENOENT，而不是悄悄换一个版本。
+// （实测 npm i 完整结束后，demo 8.1s 启动、npx next --version = 15.5.28。）
+const { pathToFileURL } = await import('node:url');
+const nextCli = path.join(cwd, 'node_modules', 'next', 'dist', 'bin', 'next');
+if (!fs.existsSync(nextCli)) {
+  console.error(
+    `[demo] 找不到 ${nextCli}\n` +
+      `       依赖可能还没装完。请先完整跑完 npm i，再执行 npm run demo。\n` +
+      `       （不通过 npx 启动是有意的：npm i 刚结束时 npx 会解析不到本地包，` +
+      `进而联网安装错误的 Next 版本。）`,
+  );
+  process.exit(1);
+}
+void pathToFileURL;
+
+const child = spawn(process.execPath, [nextCli, 'dev'], {
   stdio: 'inherit',
   env: { ...process.env, MOCK_LLM: '1' },
-  shell: process.platform === 'win32',
 });
 
 child.on('exit', (code) => process.exit(code ?? 0));
