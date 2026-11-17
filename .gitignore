@@ -35,3 +35,7 @@ docs/shots/
 
 # probe screenshots (local only)
 .shots/
+
+# chengpian (video upload asset, too large for repo)
+docs/recordings/*/*.mp4
+docs/recordings/*/*.jpg
