@@ -715,8 +715,8 @@ README 自检小节写明了三条命令与期望结果（数字为 **2026-11-16
 
 | 路径 | 内容 |
 |---|---|
-| `lib/` | 16 个模块，约 3300 行业务逻辑（纯函数优先） |
-| `app/api/` | 11 个 Route Handler |
+| `lib/` | 18 个模块，约 3500 行业务逻辑（纯函数优先） |
+| `app/api/` | 13 个 Route Handler |
 | `tests/` | 35 个测试文件，467 条单测（2026-11-16 复验） |
 | `fixtures/llm/` | 五阶段回放剧本（`{notes, seq:[{inputHash, response}]}`） |
 | `fixtures/demo/` | 内置样例（sample-paper.docx + blocks.json） |
