@@ -39,3 +39,4 @@ docs/shots/
 # chengpian (video upload asset, too large for repo)
 docs/recordings/*/*.mp4
 docs/recordings/*/*.jpg
+docs/recordings/*.jpg
